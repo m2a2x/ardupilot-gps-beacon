@@ -11,6 +11,7 @@
 #include "utils.h"    // For addMavlinkMessage and new helpers
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include "proxy.h"
 
 #define MISSION_TASK_STACK_SIZE 2048
 #define MISSION_TASK_PRIORITY   1
@@ -114,36 +115,40 @@ void mavlinkTask(void *pvParameters) {
         
         // Process messages from queue and send to drone
         if (xQueueReceive(mavlinkQueue, &msg, 0) == pdPASS) {
-            // Send the message to the drone via UART
-            mavSerial.write(msg.data, msg.length);
-            rxBytes += msg.length;
+            // Send the message to the drone via proxy
+            mavlink_message_t mavlink_msg;
+            memcpy(&mavlink_msg, &msg, sizeof(mavlink_message_t));
+            if (proxy.writeMessage(&mavlink_msg)) {
+                rxBytes += msg.length;
+            }
         }
         
-        // Handle incoming UART data
+        // Handle incoming data from proxy
+        mavlink_message_t incoming_msg;
         uint8_t buf[MAVLINK_MAX_PACKET_LEN];
         int len = 0;
-        while (mavSerial.available() && len < sizeof(buf)) {
-            uint8_t byte = mavSerial.read();
-            buf[len++] = byte;
-            
-            // Parse MAVLink message
-            if (mavlink_parse_char(MAVLINK_COMM_0, byte, &mavlink_msg, &status)) {
+        
+        while (proxy.available()) {
+            if (proxy.readMessage(&incoming_msg)) {
                 // Add message to history for menu display with parsed fields
-                addMavlinkMessage(mavlink_msg);
+                addMavlinkMessage(incoming_msg);
                 
                 // Handle radio status message
-                if (mavlink_msg.msgid == MAVLINK_MSG_ID_RADIO_STATUS) {
+                if (incoming_msg.msgid == MAVLINK_MSG_ID_RADIO_STATUS) {
                     mavlink_radio_status_t radio_status;
-                    mavlink_msg_radio_status_decode(&mavlink_msg, &radio_status);
+                    mavlink_msg_radio_status_decode(&incoming_msg, &radio_status);
                     radio_rssi = radio_status.rssi;
                 }
+                
+                // Convert message to buffer for UDP transmission
+                len = mavlink_msg_to_send_buffer(buf, &incoming_msg);
+                if (len > 0) {
+                    for (auto client : clients) {
+                        sendUDP(buf, len, client.ip);
+                    }
+                    txBytes += len;
+                }
             }
-        }
-        if (len > 0) {
-            for (auto client : clients) {
-                sendUDP(buf, len, client.ip);
-            }
-            txBytes += len;
         }
         
         vTaskDelay(xDelay);

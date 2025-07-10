@@ -1,5 +1,13 @@
 #include "mavlink_cmds.h"
 #include "conf.h"
+#include "proxy.h"
+
+/**
+ * Helper function to send MAVLink message through proxy
+ */
+static void sendMavlinkMessage(const mavlink_message_t* msg) {
+    proxy.writeMessage(msg);
+}
 
 uint32_t get_custom_mode_for(const char *mode)
 {
@@ -24,7 +32,6 @@ uint32_t get_custom_mode_for(const char *mode)
  */
 void send_set_mode(const char *mode_name) {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
   
   uint8_t base_mode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
   uint32_t custom_mode = get_custom_mode_for(mode_name);
@@ -39,9 +46,8 @@ void send_set_mode(const char *mode_name) {
     custom_mode // custom mode number
   );
 
-  // Convert message to buffer and send
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
 }
 
 
@@ -57,7 +63,6 @@ void send_set_mode(const char *mode_name) {
 void sendFollowTargetLatLon(uint64_t timestamp, double lat, double lon, float alt)
 {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   // Convert degrees to microdegrees (multiply by 1e7)
   int32_t lat_int = static_cast<int32_t>(lat * 1e7);
@@ -92,9 +97,8 @@ void sendFollowTargetLatLon(uint64_t timestamp, double lat, double lon, float al
       custom_state      // custom state (unused)
   );
 
-  // Convert message to buffer and send
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
 }
 
 
@@ -105,7 +109,6 @@ void sendMissionItem(uint16_t seq, MAV_FRAME frame, uint16_t command, uint8_t au
                     float param1, float param2, float param3, float param4,
                     float x, float y, float z) {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   // Pack the MISSION_ITEM message
   mavlink_msg_mission_item_pack(
@@ -129,9 +132,8 @@ void sendMissionItem(uint16_t seq, MAV_FRAME frame, uint16_t command, uint8_t au
     0         // mission_type (0 for mission item)
   );
 
-  // Convert message to buffer and send
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
 }
 
 /**
@@ -139,7 +141,6 @@ void sendMissionItem(uint16_t seq, MAV_FRAME frame, uint16_t command, uint8_t au
  */
 void sendMissionCount(uint16_t count) {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   // Pack the MISSION_COUNT message
   mavlink_msg_mission_count_pack(
@@ -153,9 +154,8 @@ void sendMissionCount(uint16_t count) {
     0      // opaque_id (0 for upload to vehicle)
   );
 
-  // Convert message to buffer and send
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
 }
 
 /**
@@ -163,7 +163,6 @@ void sendMissionCount(uint16_t count) {
  */
 void sendMissionRequest(uint16_t seq) {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   // Pack the MISSION_REQUEST message
   mavlink_msg_mission_request_pack(
@@ -176,9 +175,8 @@ void sendMissionRequest(uint16_t seq) {
     0     // mission_type (0 for mission)
   );
 
-  // Convert message to buffer and send
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
 }
 
 /**
@@ -186,7 +184,6 @@ void sendMissionRequest(uint16_t seq) {
  */
 void sendMissionAck(uint8_t type) {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   // Pack the MISSION_ACK message
   mavlink_msg_mission_ack_pack(
@@ -200,15 +197,13 @@ void sendMissionAck(uint8_t type) {
     0     // opaque_id (0 for upload to vehicle)
   );
 
-  // Convert message to buffer and send
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
 }
 
 void send_heartbeat()
 {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   mavlink_msg_heartbeat_pack(
       MAVLINK_SYSTEM_ID,   // system id
@@ -221,15 +216,13 @@ void send_heartbeat()
       MAV_STATE_ACTIVE                   // system status
   );
 
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  sendMavlinkMessage(&msg);
 }
 
 // Send command to arm the vehicle
 void send_arm_command(bool arm)
 {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   mavlink_msg_command_long_pack(
       MAVLINK_SYSTEM_ID,   // system_id
@@ -248,15 +241,13 @@ void send_arm_command(bool arm)
       0                             // param7
   );
 
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  sendMavlinkMessage(&msg);
 }
 
 // Send takeoff command
 void send_takeoff_command(float altitude)
 {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   mavlink_msg_command_long_pack(
       MAVLINK_SYSTEM_ID,   // system_id
@@ -275,8 +266,7 @@ void send_takeoff_command(float altitude)
       altitude             // param7 (altitude)
   );
 
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  sendMavlinkMessage(&msg);
 }
 
 
@@ -334,7 +324,6 @@ void send_takeoff_command(float altitude)
 void send_position_target(float lat, float lon, float alt)
 {
   mavlink_message_t msg;
-  uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
   mavlink_msg_set_position_target_global_int_pack(
       MAVLINK_SYSTEM_ID,   // system_id
@@ -353,8 +342,7 @@ void send_position_target(float lat, float lon, float alt)
       0, 0                               // yaw, yaw_rate (not used)
   );
 
-  uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-  mavSerial.write(buf, len);
+  sendMavlinkMessage(&msg);
 }
 
 /**
