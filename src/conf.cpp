@@ -18,7 +18,7 @@ WiFiUDP udp;
 bool armed = false;
 
 // State tracking
-bool wifi_enabled = true;
+bool wifi_enabled = false;
 bool gps_enabled = true; 
 
 // Hardware Serial instance

@@ -47,23 +47,27 @@ void setup() {
         Serial.println("Error: Display initialization failed!");
     }
 
-    // Configure and start WiFi Access Point
-    Serial.println("Starting Access Point...");
-    WiFi.softAPConfig(IPAddress(LOCAL_IP), IPAddress(LOCAL_IP), IPAddress(255, 255, 255, 0));
-    WiFi.mode(WIFI_AP);
-    if (!WiFi.softAP(ap_ssid, ap_pass)) {
-        Serial.println("Error: Failed to start Access Point!");
-    }
-    delay(1000);
+    // Configure and start WiFi Access Point (only if enabled)
+    if (wifi_enabled) {
+        Serial.println("Starting Access Point...");
+        WiFi.softAPConfig(IPAddress(LOCAL_IP), IPAddress(LOCAL_IP), IPAddress(255, 255, 255, 0));
+        WiFi.mode(WIFI_AP);
+        if (!WiFi.softAP(ap_ssid, ap_pass)) {
+            Serial.println("Error: Failed to start Access Point!");
+        }
+        delay(1000);
 
-    Serial.print("ESP32 IP: ");
-    Serial.println(WiFi.softAPIP());
+        Serial.print("ESP32 IP: ");
+        Serial.println(WiFi.softAPIP());
 
-    // Initialize UDP server
-    if (!udp.begin(GROUNDSTATION_PORT)) {
-        Serial.println("Error: Failed to start UDP server!");
+        // Initialize UDP server
+        if (!udp.begin(GROUNDSTATION_PORT)) {
+            Serial.println("Error: Failed to start UDP server!");
+        }
+        Serial.printf("UDP listening on port %d\n", GROUNDSTATION_PORT);
+    } else {
+        Serial.println("WiFi disabled by default - use menu to enable");
     }
-    Serial.printf("UDP listening on port %d\n", GROUNDSTATION_PORT);
 
     // Initialize FreeRTOS tasks
     initTasks();
