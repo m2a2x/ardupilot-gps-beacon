@@ -1,0 +1,109 @@
+#pragma once
+#include <Arduino.h>
+#include <vector>
+#include "mission/mission.h"
+#include "utils.h"
+
+/**
+ * Menu screen types for multi-level navigation
+ */
+enum MenuScreen {
+  MAIN_MENU,      ///< Main menu with primary options
+  GPS_INFO,       ///< GPS information screen
+  MAVLINK_MESSAGES, ///< MAVLink messages screen (basic view)
+  MAVLINK_DETAILS, ///< MAVLink messages screen (detailed view with fields)
+  FLIGHT_MODES,   ///< Flight mode selection sub-menu
+  SETTINGS,       ///< Settings sub-menu
+  GPS_MENU,       ///< GPS control sub-menu
+  MISSION_STATUS  ///< Mission status screen
+};
+
+/**
+ * Available menu options for drone control
+ * Each option represents a different control function
+ */
+enum MenuOption {
+  FLIGHT_MODES_MENU, ///< Enter flight modes sub-menu
+  GPS_INFO_SCREEN,   ///< Enter GPS info screen
+  MAVLINK_MESSAGES_SCREEN, ///< Enter MAVLink messages screen
+  MAVLINK_DETAILS_SCREEN, ///< Enter detailed MAVLink messages screen
+  SETTINGS_MENU,     ///< Enter settings sub-menu
+  RESTART,        ///< Restart the ESP32
+  EXIT_MENU,      ///< Exit menu system and return to normal operation
+  STOP_FLIGHT     ///< Stop flight and hold position
+  
+  // Flight modes sub-menu options (handled in selectMenuOption)
+  // LOITER_MODE, GUIDED_MODE, FOLLOW_ME are handled as special cases
+};
+
+/**
+ * Menu navigation structure
+ */
+struct MenuState {
+  MenuScreen currentScreen;
+  MenuOption currentOption;
+  bool menuActive;
+  int optionCount;  // Number of options in current screen
+};
+
+/**
+ * Enter the menu system
+ * Initializes menu state and sets first option as active
+ */
+void enterMenu();
+
+/**
+ * Check if currently in menu
+ * @return true if menu is active, false otherwise
+ */
+bool isInMenu();
+
+/**
+ * Get current menu screen
+ * @return current MenuScreen
+ */
+MenuScreen getCurrentScreen();
+
+/**
+ * Navigate to a specific menu screen
+ * @param screen The screen to navigate to
+ */
+void navigateToScreen(MenuScreen screen);
+
+/**
+ * Go back to previous screen or exit menu
+ */
+void goBack();
+
+/**
+ * Select the current menu option
+ * Executes the action associated with the currently selected menu option
+ */
+void selectMenuOption();
+
+/**
+ * Move to the next menu option
+ * Cycles through available menu options in sequence
+ */
+void nextMenuOption();
+
+/**
+ * Move to the previous menu option
+ * Cycles through available menu options in reverse sequence
+ */
+void previousMenuOption();
+
+/**
+ * Get the current menu display lines
+ * Generates formatted text for menu display
+ * @param lines Vector to store menu display lines
+ */
+void getMenuDisplay(std::vector<String> &lines);
+
+/**
+ * Get the current menu display lines with highlight information
+ * Generates formatted text for menu display and returns lines to highlight
+ * @param lines Vector to store menu display lines
+ * @param highlightLines Vector to store line indices to highlight (0-based)
+ */
+void getMenuDisplayWithHighlight(std::vector<String> &lines, std::vector<int> &highlightLines); 
