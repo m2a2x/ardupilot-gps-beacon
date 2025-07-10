@@ -1,6 +1,7 @@
 #include "mavlink_cmds.h"
 #include "conf.h"
 #include "proxy.h"
+#include "flight_modes.h"
 
 /**
  * Helper function to send MAVLink message through proxy
@@ -9,18 +10,7 @@ static void sendMavlinkMessage(const mavlink_message_t* msg) {
     proxy.writeMessage(msg);
 }
 
-uint32_t get_custom_mode_for(const char *mode)
-{
-  if (strcmp(mode, "GUIDED") == 0)
-    return 4;
-  if (strcmp(mode, "FOLLOW") == 0)
-    return 23;
-  if (strcmp(mode, "AUTO") == 0)
-    return 3;
-  if (strcmp(mode, "LOITER") == 0)
-    return 5;
-  return 0; // STABILIZE
-}
+
 
 /**
  * Send a SET_MODE command to the autopilot

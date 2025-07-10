@@ -48,16 +48,18 @@ bool MavlinkProxy::writeMessage(const mavlink_message_t* msg) {
         return false;
     }
     
-    // Calculate message length
-    uint16_t len = mavlink_msg_to_send_buffer(NULL, msg);
-    uint8_t buffer[len];
     
-    // Serialize message to buffer
-    mavlink_msg_to_send_buffer(buffer, msg);
+    // Use a fixed-size buffer instead of variable-length array to prevent stack overflow
+    // MAVLINK_MAX_PACKET_LEN is typically 280 bytes, which is safe for stack allocation
+    uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+    
+    
+    // Calculate message length and serialize message to buffer
+    uint16_t len = mavlink_msg_to_send_buffer(buffer, msg);
+    
     
     // Write to radio
     size_t written = radio.write(buffer, len);
-    
     return written == len;
 }
 

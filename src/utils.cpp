@@ -2,6 +2,7 @@
 #include <algorithm>  // For std::remove_if
 #include <set>        // For std::set
 #include "mission/mission_loiter.h"  // For LoiterMission
+#include "menu/flight_modes.h"  // For flight mode functions
 
 // MAVLink message history storage
 static std::vector<MavlinkMessageInfo> mavlinkMessageHistory;
@@ -705,21 +706,12 @@ String getShortMessageName(uint8_t msgid) {
  * to update the currently active mission
  */
 void updateCurrentMission() {
-  if (currentMission) {
+  if (currentMission != nullptr) {
     currentMission->update();
   }
 }
 
-/**
- * Get the name of the currently active flight mode
- * @return String representing the active flight mode, or empty string if none
- */
-String getActiveFlightMode() {
-  if (currentMission) {
-    return currentMission->getName();
-  }
-  return "";
-}
+
 
 /**
  * Get mission status display
@@ -736,34 +728,15 @@ void getMissionStatusDisplay(std::vector<String>& lines) {
 }
 
 void getActiveFlightModeDisplay(std::vector<String> &lines) {
-  if (currentMission) {
-    lines.push_back(String("Active Mission: ") + currentMission->getName());
+  String activeMode = getActiveFlightMode();
+  if (activeMode != "None") {
+    lines.push_back(String("Active Mission: ") + activeMode);
   } else {
     lines.push_back("No Active Mission");
   }
 }
 
-/**
- * Stop any running mission and switch to loiter mode
- * This function safely stops the current mission (if any) and
- * starts a new loiter mission to bring the drone to a safe loiter state
- */
-void stopMissionAndLoiter() {
-  // Stop and cleanup current mission if it exists
-  if (currentMission) {
-    Serial.println("Stopping current mission: " + String(currentMission->getName()));
-    currentMission->stop();
-    delete currentMission;
-    currentMission = nullptr;
-  }
-  
-  // Create and start a new loiter mission
-  Serial.println("Starting loiter mission");
-  currentMission = new LoiterMission();
-  currentMission->start();
-  
-  Serial.println("Drone switched to loiter mode");
-}
+
 
 /**
  * Clear all MAVLink messages from history

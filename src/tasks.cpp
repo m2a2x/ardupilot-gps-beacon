@@ -10,6 +10,7 @@
 #include "utils.h"    // For addMavlinkMessage and new helpers
 #include "udp_module.h"  // For UDP module
 #include "proxy.h"
+#include "menu/flight_modes.h"  // For flight mode functions
 
 #define MISSION_TASK_STACK_SIZE 2048
 #define MISSION_TASK_PRIORITY   1
@@ -43,8 +44,12 @@ SemaphoreHandle_t displayMutex = NULL;
 
 // External variables
 extern StatusDisplay oled;
-extern unsigned long rxBytes, txBytes;
 extern std::vector<GCSClient> clients;  // From clients.h
+
+// Transmission activity tracking
+static unsigned long lastRxTime = 0;
+static unsigned long lastTxTime = 0;
+static const unsigned long ACTIVITY_TIMEOUT = 1000; // 1 second timeout for activity indication
 
 // GPS Task
 void gpsTask(void *pvParameters) {
@@ -116,7 +121,7 @@ void mavlinkTask(void *pvParameters) {
             mavlink_message_t mavlink_msg;
             memcpy(&mavlink_msg, &msg, sizeof(mavlink_message_t));
             if (proxy.writeMessage(&mavlink_msg)) {
-                rxBytes += msg.length;
+                lastRxTime = millis(); // Track receive activity
             }
         }
         
@@ -139,11 +144,8 @@ void mavlinkTask(void *pvParameters) {
                 
                 // Convert message to buffer for UDP transmission only if UDP module is enabled
                 len = mavlink_msg_to_send_buffer(buf, &incoming_msg);
-                if (len > 0 && udpModule.isEnabled()) {
-                    int sentCount = udpModule.broadcastPacket(buf, len);
-                    if (sentCount > 0) {
-                        txBytes += len * sentCount;
-                    }
+                if (len > 0) {
+                    lastTxTime = millis(); // Track transmit activity
                 }
             }
         }
@@ -184,26 +186,19 @@ void displayTask(void *pvParameters) {
                 xSemaphoreGive(displayMutex);
             }
         } else {
-            if (currentMission) {
-                lines.push_back(String("Active Mission: ") + currentMission->getName());
+            String activeMode = getActiveFlightMode();
+            if (activeMode != "None") {
+                lines.push_back(String("Active Mission: ") + activeMode);
             }
-            // --- FLIGHT MODE from MAVLink ---
-            // String flightMode;
-            // if (getLatestFlightMode(flightMode)) {
-            //     lines.push_back("Mode: " + flightMode);
-            // }
-            // --- BATTERY from MAVLink ---
-            float vbat = 0.0f, ibat = 0.0f;
-            int bat_rem = 0;
-            if (getLatestBatteryInfo(vbat, ibat, bat_rem)) {
-                lines.push_back("Battery: " + String(vbat, 2) + "V " + String(ibat, 2) + "A " + String(bat_rem) + "%");
-            }
-            lines.push_back("Drone/Tx: " + String(txBytes));
-            lines.push_back("Device/Rx: " + String(rxBytes));
+            // Show transmission activity with + or -
+            unsigned long currentTime = millis();
+            String txStatus = (currentTime - lastTxTime < ACTIVITY_TIMEOUT) ? "+" : "-";
+            String rxStatus = (currentTime - lastRxTime < ACTIVITY_TIMEOUT) ? "+" : "-";
+            lines.push_back("Tx: " + txStatus + " Rx: " + rxStatus);
             
             // Radio signal strength
-            int8_t rssi_dbm = (int8_t)(radio_rssi * 1.9f - 127);
-            lines.push_back("Radio: " + String(rssi_dbm) + " dBm");
+            // int8_t rssi_dbm = (int8_t)(radio_rssi * 1.9f - 127);
+            lines.push_back("Radio: " + String(radio_rssi));
             
             // GPS information only if enabled
             if (gps_enabled && gpsDataValid) {
@@ -266,7 +261,10 @@ void wifiTask(void *pvParameters) {
 void missionTask(void *pvParameters) {
     const TickType_t xDelay = pdMS_TO_TICKS(100); // 100ms delay
     while (1) {
-        updateCurrentMission();
+        // Add safety check to prevent crashes
+        if (currentMission != nullptr) {
+            updateCurrentMission();
+        }
         vTaskDelay(xDelay);
     }
 }

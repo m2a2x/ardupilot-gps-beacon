@@ -13,9 +13,14 @@ enum MenuScreen {
   MAVLINK_MESSAGES, ///< MAVLink messages screen (basic view)
   MAVLINK_DETAILS, ///< MAVLink messages screen (detailed view with fields)
   FLIGHT_MODES,   ///< Flight mode selection sub-menu
+  FLIGHT_MODE_STATUS, ///< Individual flight mode status screen
   SETTINGS,       ///< Settings sub-menu
   GPS_MENU,       ///< GPS control sub-menu
-  MISSION_STATUS  ///< Mission status screen
+  MISSION_STATUS, ///< Mission status screen
+  GUIDED_MODE_CONTROL, ///< Guided mode control screen (start/stop/back)
+  FOLLOW_ME_CONTROL,   ///< Follow me mode control screen (start/stop/back)
+  GO_TO_CONTROL,       ///< Go to mode control screen (start/stop/back)
+  ARM_CONTROL          ///< Arm mode control screen (start/stop/back)
 };
 
 /**
@@ -30,10 +35,21 @@ enum MenuOption {
   SETTINGS_MENU,     ///< Enter settings sub-menu
   RESTART,        ///< Restart the ESP32
   EXIT_MENU,      ///< Exit menu system and return to normal operation
-  STOP_FLIGHT     ///< Stop flight and hold position
   
-  // Flight modes sub-menu options (handled in selectMenuOption)
-  // LOITER_MODE, GUIDED_MODE, FOLLOW_ME are handled as special cases
+  // Flight modes sub-menu options
+  GUIDED_MODE,    ///< Enter guided mode control
+  FOLLOW_ME,      ///< Enter follow me mode control
+  GO_TO,          ///< Enter go to mode control
+  ARM,            ///< Enter arm mode control
+  BACK,           ///< Go back to previous menu
+  
+  // Flight mode status screen options
+  BACK_TO_FLIGHT_MODES, ///< Go back to flight modes menu
+  
+  // Individual flight mode control options
+  START_MODE,     ///< Start the current flight mode
+  STOP_MODE,      ///< Stop the current flight mode
+  BACK_TO_MODE    ///< Go back to flight modes menu
 };
 
 /**

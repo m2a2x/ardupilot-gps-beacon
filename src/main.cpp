@@ -22,11 +22,6 @@
 
 // === Display and Status Variables ===
 StatusDisplay oled;
-unsigned long rxBytes = 0, txBytes = 0;
-
-// === UDP Configuration ===
-// UDP module is handled by udpModule instance
-
 /**
  * Initialize all hardware and network components
  */

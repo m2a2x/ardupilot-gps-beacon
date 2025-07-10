@@ -12,9 +12,9 @@
 #include "mission/mission_arm.h"
 #include "utils.h"  // For utility functions
 #include "udp_module.h"  // For UDP module
+#include "flight_modes.h"  // For flight modes functionality
 
 // External declarations
-extern unsigned long rxBytes, txBytes;  // From main.cpp
 extern unsigned long lastGPSUpdate;     // From gps.cpp
 extern int8_t radio_rssi;               // From tasks.cpp
 extern std::vector<GCSClient> clients;  // From clients.h
@@ -49,13 +49,20 @@ static unsigned long lastPosTime = 0;
 int getOptionCount(MenuScreen screen) {
   switch (screen) {
     case MAIN_MENU:
-      return 7; // FLIGHT_MODES_MENU, GPS_INFO_SCREEN, MAVLINK_MESSAGES_SCREEN, SETTINGS_MENU, RESTART, STOP_FLIGHT, EXIT_MENU
+      return 6; // FLIGHT_MODES_MENU, GPS_INFO_SCREEN, MAVLINK_MESSAGES_SCREEN, SETTINGS_MENU, RESTART, EXIT_MENU
     case FLIGHT_MODES:
-      return 7; // LOITER_MODE, GUIDED_MODE, FOLLOW_ME, GO_TO, ARM, STOP_MISSION, BACK
+      return 5; // GUIDED_MODE, FOLLOW_ME, GO_TO, ARM, BACK
+    case FLIGHT_MODE_STATUS:
+      return 1; // BACK_TO_FLIGHT_MODES
     case SETTINGS:
       return 2; // TOGGLE_WIFI_SETTINGS, BACK
     case GPS_MENU:
       return 2; // TOGGLE_GPS, BACK
+    case GUIDED_MODE_CONTROL:
+    case FOLLOW_ME_CONTROL:
+    case GO_TO_CONTROL:
+    case ARM_CONTROL:
+      return 3; // START_MODE, STOP_MODE, BACK_TO_MODE
     default:
       return 1; // Info screens have no options, just display
   }
@@ -97,7 +104,23 @@ MenuScreen getCurrentScreen() {
 void navigateToScreen(MenuScreen screen) {
   screenHistory.push_back(menuState.currentScreen);
   menuState.currentScreen = screen;
-  menuState.currentOption = FLIGHT_MODES_MENU; // Reset to first option
+  
+  // Set appropriate initial option based on screen
+  switch (screen) {
+    case FLIGHT_MODE_STATUS:
+      menuState.currentOption = BACK_TO_FLIGHT_MODES; // First option in flight mode status
+      break;
+    case GUIDED_MODE_CONTROL:
+    case FOLLOW_ME_CONTROL:
+    case GO_TO_CONTROL:
+    case ARM_CONTROL:
+      menuState.currentOption = START_MODE; // First option in flight mode control
+      break;
+    default:
+      menuState.currentOption = FLIGHT_MODES_MENU; // Default to first option
+      break;
+  }
+  
   menuState.optionCount = getOptionCount(screen);
 }
 
@@ -113,7 +136,26 @@ void goBack() {
     MenuScreen previousScreen = screenHistory.back();
     screenHistory.pop_back();
     menuState.currentScreen = previousScreen;
-    menuState.currentOption = FLIGHT_MODES_MENU; // Reset to first option
+    
+    // Set appropriate initial option based on previous screen
+    switch (previousScreen) {
+      case FLIGHT_MODES:
+        menuState.currentOption = GUIDED_MODE; // First option in flight modes
+        break;
+      case FLIGHT_MODE_STATUS:
+        menuState.currentOption = BACK_TO_FLIGHT_MODES; // First option in flight mode status
+        break;
+      case GUIDED_MODE_CONTROL:
+      case FOLLOW_ME_CONTROL:
+      case GO_TO_CONTROL:
+      case ARM_CONTROL:
+        menuState.currentOption = GUIDED_MODE; // Back to flight modes menu
+        break;
+      default:
+        menuState.currentOption = FLIGHT_MODES_MENU; // Default to first option
+        break;
+    }
+    
     menuState.optionCount = getOptionCount(previousScreen);
   }
 }
@@ -142,12 +184,9 @@ void nextMenuOption() {
         current = 5; // RESTART
         break;
       case 5: // RESTART
-        current = 6; // STOP_FLIGHT
+        current = 6; // EXIT_MENU
         break;
-      case 6: // STOP_FLIGHT
-        current = 7; // EXIT_MENU
-        break;
-      case 7: // EXIT_MENU
+      case 6: // EXIT_MENU
         current = 0; // Back to FLIGHT_MODES_MENU
         break;
       default:
@@ -162,6 +201,11 @@ void nextMenuOption() {
     int current = static_cast<int>(menuState.currentOption);
     current = (current + 1) % menuState.optionCount;
     menuState.currentOption = static_cast<MenuOption>(current);
+  } else if (menuState.currentScreen == FLIGHT_MODE_STATUS) {
+    // Flight mode status screen has special handling
+    int current = static_cast<int>(menuState.currentOption);
+    current = (current + 1) % menuState.optionCount;
+    menuState.currentOption = static_cast<MenuOption>(current);
   } else if (menuState.currentScreen == SETTINGS) {
     // Settings sub-menu has special handling
     int current = static_cast<int>(menuState.currentOption);
@@ -169,6 +213,14 @@ void nextMenuOption() {
     menuState.currentOption = static_cast<MenuOption>(current);
   } else if (menuState.currentScreen == GPS_MENU) {
     // GPS menu has special handling
+    int current = static_cast<int>(menuState.currentOption);
+    current = (current + 1) % menuState.optionCount;
+    menuState.currentOption = static_cast<MenuOption>(current);
+  } else if (menuState.currentScreen == GUIDED_MODE_CONTROL ||
+             menuState.currentScreen == FOLLOW_ME_CONTROL ||
+             menuState.currentScreen == GO_TO_CONTROL ||
+             menuState.currentScreen == ARM_CONTROL) {
+    // Flight mode control screens have special handling
     int current = static_cast<int>(menuState.currentOption);
     current = (current + 1) % menuState.optionCount;
     menuState.currentOption = static_cast<MenuOption>(current);
@@ -188,7 +240,7 @@ void previousMenuOption() {
     // Define the correct reverse sequence for main menu options
     switch (current) {
       case 0: // FLIGHT_MODES_MENU
-        current = 7; // EXIT_MENU
+        current = 6; // EXIT_MENU
         break;
       case 1: // GPS_INFO_SCREEN
         current = 0; // FLIGHT_MODES_MENU
@@ -202,11 +254,8 @@ void previousMenuOption() {
       case 5: // RESTART
         current = 4; // SETTINGS_MENU
         break;
-      case 6: // STOP_FLIGHT
+      case 6: // EXIT_MENU
         current = 5; // RESTART
-        break;
-      case 7: // EXIT_MENU
-        current = 6; // STOP_FLIGHT
         break;
       default:
         // If we somehow get an invalid value, reset to first option
@@ -220,6 +269,11 @@ void previousMenuOption() {
     int current = static_cast<int>(menuState.currentOption);
     current = (current - 1 + menuState.optionCount) % menuState.optionCount;
     menuState.currentOption = static_cast<MenuOption>(current);
+  } else if (menuState.currentScreen == FLIGHT_MODE_STATUS) {
+    // Flight mode status screen has special handling
+    int current = static_cast<int>(menuState.currentOption);
+    current = (current - 1 + menuState.optionCount) % menuState.optionCount;
+    menuState.currentOption = static_cast<MenuOption>(current);
   } else if (menuState.currentScreen == SETTINGS) {
     // Settings sub-menu has special handling
     int current = static_cast<int>(menuState.currentOption);
@@ -227,6 +281,14 @@ void previousMenuOption() {
     menuState.currentOption = static_cast<MenuOption>(current);
   } else if (menuState.currentScreen == GPS_MENU) {
     // GPS menu has special handling
+    int current = static_cast<int>(menuState.currentOption);
+    current = (current - 1 + menuState.optionCount) % menuState.optionCount;
+    menuState.currentOption = static_cast<MenuOption>(current);
+  } else if (menuState.currentScreen == GUIDED_MODE_CONTROL ||
+             menuState.currentScreen == FOLLOW_ME_CONTROL ||
+             menuState.currentScreen == GO_TO_CONTROL ||
+             menuState.currentScreen == ARM_CONTROL) {
+    // Flight mode control screens have special handling
     int current = static_cast<int>(menuState.currentOption);
     current = (current - 1 + menuState.optionCount) % menuState.optionCount;
     menuState.currentOption = static_cast<MenuOption>(current);
@@ -271,12 +333,6 @@ void selectMenuOption() {
           ESP.restart();
           break;
 
-        case STOP_FLIGHT:
-          // Stop flight and hold position
-          stopMissionAndLoiter();
-          Serial.println("Stop flight executed - drone holding position");
-          break;
-
         case EXIT_MENU:
           // Deactivate menu system
           menuState.menuActive = false;
@@ -287,41 +343,27 @@ void selectMenuOption() {
 
     case FLIGHT_MODES:
       switch (menuState.currentOption) {
-        case 0: // LOITER_MODE
-          if (currentMission) { currentMission->stop(); delete currentMission; currentMission = nullptr; }
-          currentMission = new LoiterMission();
-          currentMission->start();
+        case 0: // GUIDED_MODE
+          navigateToScreen(GUIDED_MODE_CONTROL);
+          break;
+        case 1: // FOLLOW_ME
+          navigateToScreen(FOLLOW_ME_CONTROL);
+          break;
+        case 2: // GO_TO
+          navigateToScreen(GO_TO_CONTROL);
+          break;
+        case 3: // ARM
+          navigateToScreen(ARM_CONTROL);
+          break;
+        case 4: // BACK
           goBack();
           break;
-        case 1: // GUIDED_MODE
-          if (currentMission) { currentMission->stop(); delete currentMission; currentMission = nullptr; }
-          currentMission = new GuidedMission();
-          currentMission->start();
-          goBack();
-          break;
-        case 2: // FOLLOW_ME
-          if (currentMission) { currentMission->stop(); delete currentMission; currentMission = nullptr; }
-          currentMission = new FollowMeMission();
-          currentMission->start();
-          goBack();
-          break;
-        case 3: // GO_TO
-          if (currentMission) { currentMission->stop(); delete currentMission; currentMission = nullptr; }
-          currentMission = new GoToMission();
-          currentMission->start();
-          goBack();
-          break;
-        case 4: // ARM
-          if (currentMission) { currentMission->stop(); delete currentMission; currentMission = nullptr; }
-          currentMission = new ArmMission();
-          currentMission->start();
-          goBack();
-          break;
-        case 5: // STOP_MISSION
-          stopMissionAndLoiter();
-          goBack();
-          break;
-        case 6: // BACK
+      }
+      break;
+
+    case FLIGHT_MODE_STATUS:
+      switch (menuState.currentOption) {
+        case 0: // BACK_TO_FLIGHT_MODES
           goBack();
           break;
       }
@@ -333,10 +375,6 @@ void selectMenuOption() {
           // Toggle UDP module state from settings menu
           if (udpModule.isEnabled()) {
             udpModule.disable();
-            // Reset communication counters when UDP is disabled
-            rxBytes = 0;
-            txBytes = 0;
-            Serial.println("UDP disabled (from settings)");
           } else {
             if (udpModule.enable()) {
               Serial.println("UDP enabled (from settings)");
@@ -368,6 +406,94 @@ void selectMenuOption() {
       }
       break;
 
+    case GUIDED_MODE_CONTROL:
+      switch (menuState.currentOption) {
+        case 0: // START_MODE
+          if (startFlightMode(FLIGHT_MODE_GUIDED)) {
+            Serial.println("Guided Mode started successfully");
+          } else {
+            Serial.println("Failed to start Guided Mode");
+          }
+          break;
+        case 1: // STOP_MODE
+          if (stopFlightMode()) {
+            Serial.println("Flight mode stopped successfully");
+          } else {
+            Serial.println("No flight mode to stop");
+          }
+          break;
+        case 2: // BACK_TO_MODE
+          goBack();
+          break;
+      }
+      break;
+
+    case FOLLOW_ME_CONTROL:
+      switch (menuState.currentOption) {
+        case 0: // START_MODE
+          if (startFlightMode(FLIGHT_MODE_FOLLOW_ME)) {
+            Serial.println("Follow Me Mode started successfully");
+          } else {
+            Serial.println("Failed to start Follow Me Mode");
+          }
+          break;
+        case 1: // STOP_MODE
+          if (stopFlightMode()) {
+            Serial.println("Flight mode stopped successfully");
+          } else {
+            Serial.println("No flight mode to stop");
+          }
+          break;
+        case 2: // BACK_TO_MODE
+          goBack();
+          break;
+      }
+      break;
+
+    case GO_TO_CONTROL:
+      switch (menuState.currentOption) {
+        case 0: // START_MODE
+          if (startFlightMode(FLIGHT_MODE_GO_TO)) {
+            Serial.println("Go To Mode started successfully");
+          } else {
+            Serial.println("Failed to start Go To Mode");
+          }
+          break;
+        case 1: // STOP_MODE
+          if (stopFlightMode()) {
+            Serial.println("Flight mode stopped successfully");
+          } else {
+            Serial.println("No flight mode to stop");
+          }
+          break;
+        case 2: // BACK_TO_MODE
+          goBack();
+          break;
+      }
+      break;
+
+    case ARM_CONTROL:
+      switch (menuState.currentOption) {
+        case 0: // START_MODE
+          if (startFlightMode(FLIGHT_MODE_ARM)) {
+            Serial.println("Arm Mode started successfully");
+          } else {
+            Serial.println("Failed to start Arm Mode");
+          }
+          break;
+        case 1: // STOP_MODE
+          if (stopFlightMode()) {
+            Serial.println("Flight mode stopped successfully");
+          } else {
+            Serial.println("No flight mode to stop");
+          }
+          break;
+        case 2: // BACK_TO_MODE
+          goBack();
+          break;
+      }
+      break;
+
     default:
       // Info screens - just go back
       goBack();
@@ -389,20 +515,22 @@ void getMenuDisplay(std::vector<String> &lines) {
       lines.push_back((menuState.currentOption == MAVLINK_MESSAGES_SCREEN ? "> " : "  ") + String("Statuses"));
       lines.push_back((menuState.currentOption == SETTINGS_MENU ? "> " : "  ") + String("Settings"));
       lines.push_back((menuState.currentOption == RESTART ? "> " : "  ") + String("Restart"));
-      lines.push_back((menuState.currentOption == STOP_FLIGHT ? "> " : "  ") + String("Stop Flight"));
       lines.push_back((menuState.currentOption == EXIT_MENU ? "> " : "  ") + String("Exit"));
       break;
     }
 
     case FLIGHT_MODES: {
-      lines.push_back("== FLIGHT MODES ==");
-      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Loiter Mode"));
-      lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Guided Mode"));
-      lines.push_back((menuState.currentOption == 2 ? "> " : "  ") + String("Follow Me"));
-      lines.push_back((menuState.currentOption == 3 ? "> " : "  ") + String("Go To"));
-      lines.push_back((menuState.currentOption == 4 ? "> " : "  ") + String("Arm"));
-      lines.push_back((menuState.currentOption == 5 ? "> " : "  ") + String("Stop Mission"));
-      lines.push_back((menuState.currentOption == 6 ? "> " : "  ") + String("Back"));
+      std::vector<int> highlightLines;
+      getFlightModesDisplayWithHighlight(lines, highlightLines, static_cast<int>(menuState.currentOption));
+      break;
+    }
+
+    case FLIGHT_MODE_STATUS: {
+      lines.push_back("== FLIGHT MODE ==");
+      String activeMode = getActiveFlightMode();
+      lines.push_back("Mode: " + activeMode);
+      lines.push_back("");
+      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Back"));
       break;
     }
 
@@ -411,13 +539,11 @@ void getMenuDisplay(std::vector<String> &lines) {
       if (gps_enabled) {
         if (gpsHasFix()) {
           lines.push_back("Status: FIX");
-          lines.push_back("Lat: " + String(getLatitude(), 6));
-          lines.push_back("Lon: " + String(getLongitude(), 6));
           lines.push_back("Alt: " + String(getAltitude(), 1) + "m");
           lines.push_back("Sats: " + String(getSatelliteCount()));
           lines.push_back("Follow Me: " + String(followMeUpdates));
         } else {
-          lines.push_back("Status: NO FIX");
+          lines.push_back("Status: -");
           lines.push_back("Sats: " + String(getSatelliteCount()));
           if (isGPSStale()) {
             lines.push_back("Signal: LOST");
@@ -455,7 +581,7 @@ void getMenuDisplay(std::vector<String> &lines) {
           lines.push_back("Sats: " + String(getSatelliteCount()));
           lines.push_back("Follow Me: " + String(followMeUpdates));
         } else {
-          lines.push_back("Status: NO FIX");
+          lines.push_back("Status: -");
           lines.push_back("Sats: " + String(getSatelliteCount()));
           if (isGPSStale()) {
             lines.push_back("Signal: LOST");
@@ -469,6 +595,50 @@ void getMenuDisplay(std::vector<String> &lines) {
       lines.push_back("");
       lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("GPS ") + (gps_enabled ? "OFF" : "ON"));
       lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Back"));
+      break;
+    }
+
+    case GUIDED_MODE_CONTROL: {
+      lines.push_back("== GUIDED MODE ==");
+      bool isActive = isFlightModeActive(FLIGHT_MODE_GUIDED);
+      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
+      lines.push_back("");
+      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
+      lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
+      lines.push_back((menuState.currentOption == 2 ? "> " : "  ") + String("Back"));
+      break;
+    }
+
+    case FOLLOW_ME_CONTROL: {
+      lines.push_back("== FOLLOW ME ==");
+      bool isActive = isFlightModeActive(FLIGHT_MODE_FOLLOW_ME);
+      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
+      lines.push_back("");
+      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
+      lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
+      lines.push_back((menuState.currentOption == 2 ? "> " : "  ") + String("Back"));
+      break;
+    }
+
+    case GO_TO_CONTROL: {
+      lines.push_back("== GO TO ==");
+      bool isActive = isFlightModeActive(FLIGHT_MODE_GO_TO);
+      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
+      lines.push_back("");
+      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
+      lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
+      lines.push_back((menuState.currentOption == 2 ? "> " : "  ") + String("Back"));
+      break;
+    }
+
+    case ARM_CONTROL: {
+      lines.push_back("== ARM ==");
+      bool isActive = isFlightModeActive(FLIGHT_MODE_ARM);
+      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
+      lines.push_back("");
+      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
+      lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
+      lines.push_back((menuState.currentOption == 2 ? "> " : "  ") + String("Back"));
       break;
     }
   }
@@ -487,19 +657,39 @@ void getMenuDisplayWithHighlight(std::vector<String> &lines, std::vector<int> &h
   
   // Add highlight information for flight modes menu
   if (menuState.currentScreen == FLIGHT_MODES) {
-    String activeMode = getActiveFlightMode();
-    
-    // Check each flight mode line (lines 1, 2, 3, 4 after the header)
-    if (activeMode == "Loiter Mode") {
-      highlightLines.push_back(1); // Loiter Mode line
-    } else if (activeMode == "Guided Mode") {
-      highlightLines.push_back(2); // Guided Mode line
-    } else if (activeMode == "Follow Me") {
-      highlightLines.push_back(3); // Follow Me line
-    } else if (activeMode == "GoTo") {
-      highlightLines.push_back(4); // GoTo line
-    } else if (activeMode == "Arm") {
-      highlightLines.push_back(5); // Arm line
+    // Clear the lines and rebuild with highlight information
+    lines.clear();
+    getFlightModesDisplayWithHighlight(lines, highlightLines, static_cast<int>(menuState.currentOption));
+  }
+  
+  // Add highlight information for flight mode control screens
+  if (menuState.currentScreen == GUIDED_MODE_CONTROL ||
+      menuState.currentScreen == FOLLOW_ME_CONTROL ||
+      menuState.currentScreen == GO_TO_CONTROL ||
+      menuState.currentScreen == ARM_CONTROL) {
+    // Highlight the status line if the mode is active
+    bool isActive = false;
+    switch (menuState.currentScreen) {
+      case GUIDED_MODE_CONTROL:
+        isActive = isFlightModeActive(FLIGHT_MODE_GUIDED);
+        break;
+      case FOLLOW_ME_CONTROL:
+        isActive = isFlightModeActive(FLIGHT_MODE_FOLLOW_ME);
+        break;
+      case GO_TO_CONTROL:
+        isActive = isFlightModeActive(FLIGHT_MODE_GO_TO);
+        break;
+      case ARM_CONTROL:
+        isActive = isFlightModeActive(FLIGHT_MODE_ARM);
+        break;
+      default:
+        break;
+    }
+    if (isActive) {
+      highlightLines.push_back(1); // Status line
     }
   }
+  
+  // Flight mode status screen doesn't need special highlighting
+  // The display is already handled in getMenuDisplay
 } 

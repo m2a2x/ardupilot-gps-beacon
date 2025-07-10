@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <mavlink/v2.0/common/mavlink.h>
+#include "flight_modes.h"
 
 // Common MAVLink system and component IDs
 extern const uint8_t MAVLINK_SYSTEM_ID;
@@ -10,14 +11,7 @@ extern const uint8_t MAVLINK_COMPONENT_ID;
 extern const uint8_t MAVLINK_TARGET_SYSTEM_ID;
 extern const uint8_t MAVLINK_TARGET_COMPONENT_ID;
 
-/**
- * Get custom mode number for a given flight mode string
- * This function converts flight mode strings to their corresponding custom mode numbers
- * 
- * @param mode Flight mode string (e.g., "GUIDED", "FOLLOW", "AUTO", "LOITER")
- * @return Custom mode number for ArduPilot, 0 for STABILIZE if mode not found
- */
-uint32_t get_custom_mode_for(const char *mode);
+
 
 /**
  * Send a command to set the flight mode using mode name

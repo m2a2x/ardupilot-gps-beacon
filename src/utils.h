@@ -130,7 +130,4 @@ bool getLatestFlightMode(String &mode);
 extern Mission* currentMission;
 
 // Mission management
-void getActiveFlightModeDisplay(std::vector<String> &lines);
-
-// Stop any mission and switch to loiter mode
-void stopMissionAndLoiter(); 
+void getActiveFlightModeDisplay(std::vector<String> &lines); 
