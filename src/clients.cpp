@@ -1,5 +1,4 @@
 #include "clients.h"
-#include "conf.h"  // For udp instance
 #include <algorithm>
 
 // Define the global clients vector
@@ -26,6 +25,4 @@ void pruneClients() {
       }),
     clients.end()
   );
-}
-
-// Remove the sendUDP function implementation from this file 
+} 

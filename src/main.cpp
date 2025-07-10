@@ -7,13 +7,10 @@
  */
 
 #include <Arduino.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
 #include <TinyGPS++.h>
 #include <mavlink/v2.0/common/mavlink.h>
 #include "conf.h"    // Configuration constants
 #include "display.h" // Display abstraction
-#include "func.h"    // Helper functions
 #include "clients.h" // Client management
 #include "menu/menu.h"    // Menu system
 #include "button.h"  // Button handling
@@ -21,13 +18,14 @@
 #include "tasks.h"   // FreeRTOS tasks
 #include "utils.h"   // Utility functions
 #include "proxy.h"   // MAVLink proxy
+#include "udp_module.h"   // UDP module
 
 // === Display and Status Variables ===
 StatusDisplay oled;
 unsigned long rxBytes = 0, txBytes = 0;
 
 // === UDP Configuration ===
-extern WiFiUDP udp;  // Defined in conf.cpp
+// UDP module is handled by udpModule instance
 
 /**
  * Initialize all hardware and network components
@@ -48,26 +46,9 @@ void setup() {
         Serial.println("Error: Display initialization failed!");
     }
 
-    // Configure and start WiFi Access Point (only if enabled)
-    if (wifi_enabled) {
-        Serial.println("Starting Access Point...");
-        WiFi.softAPConfig(IPAddress(LOCAL_IP), IPAddress(LOCAL_IP), IPAddress(255, 255, 255, 0));
-        WiFi.mode(WIFI_AP);
-        if (!WiFi.softAP(ap_ssid, ap_pass)) {
-            Serial.println("Error: Failed to start Access Point!");
-        }
-        delay(1000);
-
-        Serial.print("ESP32 IP: ");
-        Serial.println(WiFi.softAPIP());
-
-        // Initialize UDP server
-        if (!udp.begin(GROUNDSTATION_PORT)) {
-            Serial.println("Error: Failed to start UDP server!");
-        }
-        Serial.printf("UDP listening on port %d\n", GROUNDSTATION_PORT);
-    } else {
-        Serial.println("WiFi disabled by default - use menu to enable");
+    // Initialize UDP module (disabled by default)
+    if (!udpModule.begin()) {
+        Serial.println("Error: UDP module initialization failed!");
     }
 
     // Initialize FreeRTOS tasks

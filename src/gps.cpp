@@ -36,7 +36,7 @@ double getLongitude() {
 
 double getAltitude() {
   if (!gps.altitude.isValid()) {
-    Serial.println("GPS: Altitude not valid");
+    // Serial.println("GPS: Altitude not valid");
     return MIN_ALTITUDE;
   }
   

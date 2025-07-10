@@ -6,11 +6,9 @@
 #include "menu/menu.h"
 #include "mavlink_cmds.h"
 #include "clients.h"  // For clients and addOrUpdateClient
-#include "func.h"     // For sendUDP
 #include "battery.h"  // For battery functions
 #include "utils.h"    // For addMavlinkMessage and new helpers
-#include <WiFi.h>
-#include <WiFiUdp.h>
+#include "udp_module.h"  // For UDP module
 #include "proxy.h"
 
 #define MISSION_TASK_STACK_SIZE 2048
@@ -40,7 +38,6 @@ QueueHandle_t displayQueue = NULL;
 QueueHandle_t gpsQueue = NULL;
 
 // Mutex handles
-SemaphoreHandle_t wifiMutex = NULL;
 SemaphoreHandle_t gpsMutex = NULL;
 SemaphoreHandle_t displayMutex = NULL;
 
@@ -96,20 +93,20 @@ void mavlinkTask(void *pvParameters) {
             lastHeartbeat = currentTime;
         }
         
-        // Handle incoming UDP packets
-        int packetSize = udp.parsePacket();
-        if (packetSize > 0) {
-            IPAddress remote = udp.remoteIP();
-            addOrUpdateClient(remote);
+        // Handle incoming UDP packets only if UDP module is enabled
+        if (udpModule.isEnabled()) {
+            uint8_t packetData[MAVLINK_MAX_PACKET_LEN];
+            IPAddress senderIP;
+            int bytesReceived = udpModule.receivePacket(packetData, sizeof(packetData), &senderIP);
             
-            msg.length = 0;
-            while (packetSize-- && msg.length < sizeof(msg.data)) {
-                msg.data[msg.length++] = udp.read();
-            }
-            msg.sourceIP = remote;
-            
-            if (xQueueSend(mavlinkQueue, &msg, 0) != pdPASS) {
-                Serial.println("Failed to send MAVLink message to queue");
+            if (bytesReceived > 0) {
+                msg.length = bytesReceived;
+                memcpy(msg.data, packetData, bytesReceived);
+                msg.sourceIP = senderIP;
+                
+                if (xQueueSend(mavlinkQueue, &msg, 0) != pdPASS) {
+                    Serial.println("Failed to send MAVLink message to queue");
+                }
             }
         }
         
@@ -140,13 +137,13 @@ void mavlinkTask(void *pvParameters) {
                     radio_rssi = radio_status.rssi;
                 }
                 
-                // Convert message to buffer for UDP transmission
+                // Convert message to buffer for UDP transmission only if UDP module is enabled
                 len = mavlink_msg_to_send_buffer(buf, &incoming_msg);
-                if (len > 0) {
-                    for (auto client : clients) {
-                        sendUDP(buf, len, client.ip);
+                if (len > 0 && udpModule.isEnabled()) {
+                    int sentCount = udpModule.broadcastPacket(buf, len);
+                    if (sentCount > 0) {
+                        txBytes += len * sentCount;
                     }
-                    txBytes += len;
                 }
             }
         }
@@ -255,22 +252,12 @@ void buttonTask(void *pvParameters) {
 // WiFi Task
 void wifiTask(void *pvParameters) {
     const TickType_t xDelay = pdMS_TO_TICKS(1000); // 1s delay
-    bool last_wifi_enabled = wifi_enabled;
+    bool last_udp_enabled = udpModule.isEnabled();
     
     while (1) {
-        if (wifi_enabled != last_wifi_enabled) {
-            if (xSemaphoreTake(wifiMutex, portMAX_DELAY) == pdTRUE) {
-                if (wifi_enabled) {
-                    WiFi.softAP(ap_ssid, ap_pass);
-                    Serial.println("WiFi AP enabled");
-                } else {
-                    WiFi.softAPdisconnect(true);
-                    Serial.println("WiFi AP disabled");
-                }
-                xSemaphoreGive(wifiMutex);
-            }
-            last_wifi_enabled = wifi_enabled;
-        }
+        // Prune old clients periodically
+        udpModule.pruneClients();
+        
         vTaskDelay(xDelay);
     }
 }
@@ -297,11 +284,10 @@ void initTasks() {
     }
     
     // Create mutexes
-    wifiMutex = xSemaphoreCreateMutex();
     gpsMutex = xSemaphoreCreateMutex();
     displayMutex = xSemaphoreCreateMutex();
     
-    if (wifiMutex == NULL || gpsMutex == NULL || displayMutex == NULL) {
+    if (gpsMutex == NULL || displayMutex == NULL) {
         Serial.println("Error: Failed to create mutexes");
         return;
     }

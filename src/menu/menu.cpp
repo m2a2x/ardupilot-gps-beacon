@@ -1,6 +1,5 @@
 #include "menu.h"
-#include "conf.h"  // For ap_ssid and ap_pass
-#include <WiFi.h>
+#include "conf.h"  // For configuration constants
 #include "gps.h"   // For GPS functions
 #include "mavlink_cmds.h"  // For MAVLink commands
 #include "battery.h"  // For battery functions
@@ -12,6 +11,7 @@
 #include "mission/mission_goto.h"
 #include "mission/mission_arm.h"
 #include "utils.h"  // For utility functions
+#include "udp_module.h"  // For UDP module
 
 // External declarations
 extern unsigned long rxBytes, txBytes;  // From main.cpp
@@ -330,14 +330,20 @@ void selectMenuOption() {
     case SETTINGS:
       switch (menuState.currentOption) {
         case 0: // TOGGLE_WIFI_SETTINGS
-          // Toggle WiFi access point state from settings menu
-          wifi_enabled = !wifi_enabled;
-          if (!wifi_enabled) {
-            // Reset communication counters when WiFi is disabled
+          // Toggle UDP module state from settings menu
+          if (udpModule.isEnabled()) {
+            udpModule.disable();
+            // Reset communication counters when UDP is disabled
             rxBytes = 0;
             txBytes = 0;
+            Serial.println("UDP disabled (from settings)");
+          } else {
+            if (udpModule.enable()) {
+              Serial.println("UDP enabled (from settings)");
+            } else {
+              Serial.println("Failed to enable UDP (from settings)");
+            }
           }
-          Serial.println(wifi_enabled ? "WiFi enabled (from settings)" : "WiFi disabled (from settings)");
           break;
         case 1: // BACK
           goBack();
@@ -433,7 +439,7 @@ void getMenuDisplay(std::vector<String> &lines) {
 
     case SETTINGS: {
       lines.push_back("== SETTINGS ==");
-      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("WiFi ") + (wifi_enabled ? "OFF" : "ON"));
+      lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("UDP ") + (udpModule.isEnabled() ? "OFF" : "ON"));
       lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Back"));
       break;
     }

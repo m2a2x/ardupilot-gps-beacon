@@ -44,7 +44,6 @@ extern QueueHandle_t displayQueue;
 extern QueueHandle_t gpsQueue;
 
 // Mutex handles
-extern SemaphoreHandle_t wifiMutex;
 extern SemaphoreHandle_t gpsMutex;
 extern SemaphoreHandle_t displayMutex;
 

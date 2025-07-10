@@ -1,13 +1,9 @@
 #pragma once
 #include <Arduino.h>
-#include <WiFiUdp.h>
 
 // Network configuration
-#define LOCAL_IP 192,168,4,1
 #define GROUNDSTATION_IP 192,168,4,1  // IP of QGroundControl machine
-#define GROUNDSTATION_PORT 14550
 #define MAVLINK_BAUD 57600
-
 
 // Common MAVLink system and component IDs
 extern const uint8_t MAVLINK_SYSTEM_ID;
@@ -16,11 +12,6 @@ extern const uint8_t MAVLINK_COMPONENT_ID;
 // Common MAVLink target system and component IDs
 extern const uint8_t MAVLINK_TARGET_SYSTEM_ID;
 extern const uint8_t MAVLINK_TARGET_COMPONENT_ID;
-
-
-// Wi-Fi AP configuration
-extern const char *ap_ssid;
-extern const char *ap_pass;
 
 // Button configuration
 const int BUTTON_PIN = 0;  // Using ESP32's built-in BOOT button (GPIO 0)
@@ -44,10 +35,7 @@ const int GPS_RX_PIN = 18;
 const int GPS_TX_PIN = 19;
 
 // State tracking
-extern bool wifi_enabled;
 extern bool gps_enabled;
-
-extern WiFiUDP udp;
 
 #define FOLLOW_ALT 2.0f
 
