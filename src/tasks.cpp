@@ -92,9 +92,9 @@ void mavlinkTask(void *pvParameters) {
     while (1) {
         TickType_t currentTime = xTaskGetTickCount();
         
-        // Send heartbeat every second
+        // Send heartbeat every second to maintain connection with flight controller
         if (currentTime - lastHeartbeat >= heartbeatDelay) {
-            // send_heartbeat();
+            send_heartbeat();
             lastHeartbeat = currentTime;
         }
         
@@ -132,6 +132,7 @@ void mavlinkTask(void *pvParameters) {
         
         while (proxy.available()) {
             if (proxy.readMessage(&incoming_msg)) {
+                
                 // Add message to history for menu display with parsed fields
                 addMavlinkMessage(incoming_msg);
                 
@@ -186,10 +187,6 @@ void displayTask(void *pvParameters) {
                 xSemaphoreGive(displayMutex);
             }
         } else {
-            String activeMode = getActiveFlightMode();
-            if (activeMode != "None") {
-                lines.push_back(String("Active Mission: ") + activeMode);
-            }
             // Show transmission activity with + or -
             unsigned long currentTime = millis();
             String txStatus = (currentTime - lastTxTime < ACTIVITY_TIMEOUT) ? "+" : "-";

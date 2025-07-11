@@ -5,6 +5,7 @@
 
 void GuidedMission::start() {
     send_set_mode("GUIDED");
+    resetUpdateCount();  // Reset counter when starting
 }
 
 void GuidedMission::update() {
@@ -26,6 +27,7 @@ void GuidedMission::update() {
         // Send position target with offset coordinates (3 meters behind)
         send_position_target(offset_lat, offset_lon, target_alt);
         
+        updateCount++;  // Increment counter for successful update
         lastPositionSend = millis();
     }
 }

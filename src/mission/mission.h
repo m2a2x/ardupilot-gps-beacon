@@ -9,4 +9,11 @@ public:
     virtual void update() = 0;
     virtual void stop() = 0;
     virtual const char* getName() const = 0;
+    
+    // Update counter methods
+    unsigned long getUpdateCount() const { return updateCount; }
+    void resetUpdateCount() { updateCount = 0; }
+    
+protected:
+    unsigned long updateCount = 0;  // Counter for successful updates
 }; 

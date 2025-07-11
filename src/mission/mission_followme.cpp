@@ -13,6 +13,8 @@ void FollowMeMission::start() {
     
     // Then set to FOLLOW mode
     send_set_mode("FOLLOW");
+    
+    resetUpdateCount();  // Reset counter when starting
 }
 
 void FollowMeMission::update() {
@@ -22,6 +24,8 @@ void FollowMeMission::update() {
         double lon = getLongitude();
         float alt = getAltitude() + FOLLOW_ALT;
         sendFollowTargetLatLon(millis(), lat, lon, alt);
+        
+        updateCount++;  // Increment counter for successful update
     }
 }
 

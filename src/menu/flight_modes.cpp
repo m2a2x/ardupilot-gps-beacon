@@ -180,8 +180,23 @@ String getActiveFlightMode() {
  */
 void getFlightModesDisplay(std::vector<String> &lines) {
   lines.push_back("== FLIGHT MODES ==");
-  lines.push_back("  Guided Mode");
-  lines.push_back("  Follow Me");
+  
+  String activeMode = getActiveFlightMode();
+  
+  // Guided Mode
+  String guidedLine = "  Guided Mode";
+  if (activeMode == "Guided Mode") {
+    guidedLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+  }
+  lines.push_back(guidedLine);
+  
+  // Follow Me
+  String followMeLine = "  Follow Me";
+  if (activeMode == "Follow Me") {
+    followMeLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+  }
+  lines.push_back(followMeLine);
+  
   lines.push_back("  Go To");
   lines.push_back("  Arm");
   lines.push_back("  Back");
@@ -201,31 +216,33 @@ void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<
   
   // Guided Mode
   String guidedLine = (selectedOption == 0 ? "> " : "  ") + String("Guided Mode");
-  lines.push_back(guidedLine);
   if (activeMode == "Guided Mode") {
+    guidedLine += " (" + getCurrentMissionUpdateCount() + " updates)";
     highlightLines.push_back(1);
   }
+  lines.push_back(guidedLine);
   
   // Follow Me
   String followMeLine = (selectedOption == 1 ? "> " : "  ") + String("Follow Me");
-  lines.push_back(followMeLine);
   if (activeMode == "Follow Me") {
+    followMeLine += " (" + getCurrentMissionUpdateCount() + " updates)";
     highlightLines.push_back(2);
   }
+  lines.push_back(followMeLine);
   
   // Go To
   String goToLine = (selectedOption == 2 ? "> " : "  ") + String("Go To");
-  lines.push_back(goToLine);
   if (activeMode == "GoTo") {
     highlightLines.push_back(3);
   }
+  lines.push_back(goToLine);
   
   // Arm
   String armLine = (selectedOption == 3 ? "> " : "  ") + String("Arm");
-  lines.push_back(armLine);
   if (activeMode == "Arm") {
     highlightLines.push_back(4);
   }
+  lines.push_back(armLine);
   
   // Back
   String backLine = (selectedOption == 4 ? "> " : "  ") + String("Back");

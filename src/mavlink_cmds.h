@@ -150,4 +150,13 @@ void send_takeoff_command(float altitude);
  */
 void calculate_offset_position(double target_lat, double target_lon, 
                               double offset_distance, 
-                              double &offset_lat, double &offset_lon); 
+                              double &offset_lat, double &offset_lon);
+
+/**
+ * Request radio status messages from the autopilot
+ * This function sends a MAVLink COMMAND_LONG message with SET_MESSAGE_INTERVAL
+ * to request periodic radio status updates
+ * 
+ * @param interval_ms Interval between messages in milliseconds (0 = default rate, -1 = disable)
+ */
+void request_radio_status(int32_t interval_ms = 1000); 

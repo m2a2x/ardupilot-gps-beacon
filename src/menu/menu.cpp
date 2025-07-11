@@ -551,8 +551,6 @@ void getMenuDisplay(std::vector<String> &lines) {
             lines.push_back("Signal: OK");
           }
         }
-      } else {
-        lines.push_back("GPS: DISABLED");
       }
       lines.push_back("");
       lines.push_back("Press to go back");
@@ -589,8 +587,6 @@ void getMenuDisplay(std::vector<String> &lines) {
             lines.push_back("Signal: OK");
           }
         }
-      } else {
-        lines.push_back("GPS: DISABLED");
       }
       lines.push_back("");
       lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("GPS ") + (gps_enabled ? "OFF" : "ON"));
@@ -601,7 +597,9 @@ void getMenuDisplay(std::vector<String> &lines) {
     case GUIDED_MODE_CONTROL: {
       lines.push_back("== GUIDED MODE ==");
       bool isActive = isFlightModeActive(FLIGHT_MODE_GUIDED);
-      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
+      if (isActive) {
+        lines.push_back("Updates: " + getCurrentMissionUpdateCount());
+      }
       lines.push_back("");
       lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
       lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
@@ -612,7 +610,9 @@ void getMenuDisplay(std::vector<String> &lines) {
     case FOLLOW_ME_CONTROL: {
       lines.push_back("== FOLLOW ME ==");
       bool isActive = isFlightModeActive(FLIGHT_MODE_FOLLOW_ME);
-      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
+      if (isActive) {
+        lines.push_back("Updates: " + getCurrentMissionUpdateCount());
+      }
       lines.push_back("");
       lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
       lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
@@ -623,7 +623,6 @@ void getMenuDisplay(std::vector<String> &lines) {
     case GO_TO_CONTROL: {
       lines.push_back("== GO TO ==");
       bool isActive = isFlightModeActive(FLIGHT_MODE_GO_TO);
-      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
       lines.push_back("");
       lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
       lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
@@ -634,11 +633,15 @@ void getMenuDisplay(std::vector<String> &lines) {
     case ARM_CONTROL: {
       lines.push_back("== ARM ==");
       bool isActive = isFlightModeActive(FLIGHT_MODE_ARM);
-      lines.push_back("Status: " + String(isActive ? "ACTIVE" : "INACTIVE"));
       lines.push_back("");
       lines.push_back((menuState.currentOption == 0 ? "> " : "  ") + String("Start"));
       lines.push_back((menuState.currentOption == 1 ? "> " : "  ") + String("Stop"));
       lines.push_back((menuState.currentOption == 2 ? "> " : "  ") + String("Back"));
+      break;
+    }
+
+    case MISSION_STATUS: {
+      getMissionStatusDisplay(lines);
       break;
     }
   }

@@ -721,6 +721,7 @@ void getMissionStatusDisplay(std::vector<String>& lines) {
   lines.push_back("== MISSION STATUS ==");
   if (currentMission) {
     lines.push_back(String("Active Mission: ") + currentMission->getName());
+    lines.push_back(String("Updates: ") + getCurrentMissionUpdateCount());
   } else {
     lines.push_back("No active mission");
   }
@@ -731,6 +732,7 @@ void getActiveFlightModeDisplay(std::vector<String> &lines) {
   String activeMode = getActiveFlightMode();
   if (activeMode != "None") {
     lines.push_back(String("Active Mission: ") + activeMode);
+    lines.push_back(String("Updates: ") + getCurrentMissionUpdateCount());
   } else {
     lines.push_back("No Active Mission");
   }
@@ -808,4 +810,15 @@ bool getLatestFlightMode(String &mode) {
         }
     }
     return false;
+}
+
+/**
+ * Get the update count from the currently active mission
+ * @return Update count as string, or "0" if no mission is active
+ */
+String getCurrentMissionUpdateCount() {
+    if (currentMission != nullptr) {
+        return String(currentMission->getUpdateCount());
+    }
+    return "0";
 } 

@@ -200,7 +200,7 @@ void send_heartbeat()
       MAVLINK_COMPONENT_ID, // component id
       &msg,
       MAV_TYPE_ONBOARD_CONTROLLER,       // type (better for SITL)
-      MAV_AUTOPILOT_ARDUPILOTMEGA,       // autopilot (ArduPilot)
+      MAV_TYPE_GCS,       // autopilot (ArduPilot)
       0, // base mode
       0,                                 // custom mode
       MAV_STATE_ACTIVE                   // system status
@@ -349,22 +349,50 @@ void send_position_target(float lat, float lon, float alt)
 void calculate_offset_position(double target_lat, double target_lon, 
                               double offset_distance, 
                               double &offset_lat, double &offset_lon) {
-  // Earth radius in meters
-  const double EARTH_RADIUS = 6371000.0;
+  // Convert distance to degrees (approximate)
+  // 1 degree of latitude ≈ 111,320 meters
+  // 1 degree of longitude ≈ 111,320 * cos(latitude) meters
   
-  // Convert target coordinates to radians
-  double lat_rad = target_lat * M_PI / 180.0;
-  double lon_rad = target_lon * M_PI / 180.0;
+  double lat_offset_deg = offset_distance / 111320.0; // Convert meters to degrees
   
-  // Calculate the angular offset in radians
-  // For small distances, we can approximate using the Earth's radius
-  double angular_offset = offset_distance / EARTH_RADIUS;
+  // Calculate longitude offset (depends on latitude)
+  double lon_offset_deg = offset_distance / (111320.0 * cos(target_lat * M_PI / 180.0));
   
-  // Calculate offset latitude (simplified for small distances)
-  // For following behind, we subtract from latitude (moving south)
-  offset_lat = target_lat - (angular_offset * 180.0 / M_PI);
+  // Calculate offset coordinates
+  offset_lat = target_lat - lat_offset_deg; // Behind = subtract latitude
+  offset_lon = target_lon - lon_offset_deg; // Behind = subtract longitude
+}
+
+/**
+ * Request radio status messages from the autopilot
+ * This function sends a MAVLink COMMAND_LONG message with SET_MESSAGE_INTERVAL
+ * to request periodic radio status updates
+ * 
+ * @param interval_ms Interval between messages in milliseconds (0 = default rate, -1 = disable)
+ */
+void request_radio_status(int32_t interval_ms) {
+  mavlink_message_t msg;
   
-  // Calculate offset longitude
-  // For following behind, longitude stays the same (we're moving in a north-south direction)
-  offset_lon = target_lon;
+  // Pack the COMMAND_LONG message with SET_MESSAGE_INTERVAL
+  mavlink_msg_command_long_pack(
+    MAVLINK_SYSTEM_ID,    // system_id
+    MAVLINK_COMPONENT_ID,  // component_id
+    &msg,
+    MAVLINK_TARGET_SYSTEM_ID,    // target_system
+    MAVLINK_TARGET_COMPONENT_ID,    // target_component
+    MAV_CMD_SET_MESSAGE_INTERVAL,   // command
+    0,    // confirmation
+    MAVLINK_MSG_ID_RADIO_STATUS,    // param1: message ID
+    interval_ms,                    // param2: interval in milliseconds
+    0,    // param3: use for index ID if required
+    0,    // param4: unused
+    0,    // param5: unused
+    0,    // param6: unused
+    0     // param7: unused
+  );
+
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
+  
+  Serial.println("Requested radio status messages with interval: " + String(interval_ms) + "ms");
 }
