@@ -28,7 +28,7 @@ void FollowMeCompleteMission::update() {
         case ARM_DRONE: {
             if (!armCommandSent) {
                 LogProxy::log("Step 1: Sending arm command...");
-                send_arm_command(true);
+                send_arm_command(true, true);
                 armCommandSent = true;
                 stateStartTime = millis();
             }
@@ -46,7 +46,7 @@ void FollowMeCompleteMission::update() {
         case SET_GUIDED_MODE: {
             if (!modeCommandSent) {
                 LogProxy::log("Step 2: Setting GUIDED mode...");
-                send_set_mode("GUIDED");
+                send_set_mode_command("GUIDED");
                 modeCommandSent = true;
                 stateStartTime = millis();
             }

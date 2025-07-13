@@ -23,6 +23,15 @@ extern const uint8_t MAVLINK_TARGET_COMPONENT_ID;
 void send_set_mode(const char *mode_name);
 
 /**
+ * Send a command to set the flight mode using COMMAND_LONG
+ * This function sends a MAVLink COMMAND_LONG message with MAV_CMD_DO_SET_MODE
+ * which will generate a command acknowledgment
+ * 
+ * @param mode_name Flight mode name (e.g., "GUIDED", "FOLLOW", "AUTO", "LOITER")
+ */
+void send_set_mode_command(const char *mode_name);
+
+/**
  * Send current GPS coordinates to the drone
  * This function sends a MAVLink GLOBAL_POSITION_INT message
  * containing the current GPS coordinates and altitude
@@ -126,8 +135,9 @@ void send_heartbeat();
  * This function sends a MAVLink COMMAND_LONG message to arm or disarm the vehicle
  * 
  * @param arm True to arm the vehicle, false to disarm
+ * @param force Force arm/disarm (optional, defaults to false)
  */
-void send_arm_command(bool arm);
+void send_arm_command(bool arm, bool force = false);
 
 /**
  * Send takeoff command to the autopilot

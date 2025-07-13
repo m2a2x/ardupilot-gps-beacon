@@ -2,7 +2,7 @@
 #include "conf.h"
 
 // Global proxy instance
-MavlinkProxy proxy(Serial);
+MavlinkProxy proxy(mavSerial);
 
 /**
  * Constructor

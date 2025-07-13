@@ -19,7 +19,7 @@ private:
     unsigned long stateStartTime;
     unsigned long lastPositionSend;
     const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
-    const float TAKEOFF_ALTITUDE = 10.0f; // 10 meters
+    const float TAKEOFF_ALTITUDE = 8.0f; // 10 meters
     const double FOLLOW_OFFSET = 3.0; // 3 meters behind
     
     // Verification flags

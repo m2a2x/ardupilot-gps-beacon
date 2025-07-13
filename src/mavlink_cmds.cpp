@@ -41,6 +41,43 @@ void send_set_mode(const char *mode_name) {
   sendMavlinkMessage(&msg);
 }
 
+/**
+ * Send a command to set the flight mode using COMMAND_LONG
+ * This function sends a MAVLink COMMAND_LONG message with MAV_CMD_DO_SET_MODE
+ * which will generate a command acknowledgment
+ * 
+ * @param mode_name Flight mode name (e.g., "GUIDED", "FOLLOW", "AUTO", "LOITER")
+ */
+void send_set_mode_command(const char *mode_name) {
+  mavlink_message_t msg;
+  
+  uint8_t base_mode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
+  uint32_t custom_mode = get_custom_mode_for(mode_name);
+
+  // Pack the COMMAND_LONG message with DO_SET_MODE
+  mavlink_msg_command_long_pack(
+    MAVLINK_SYSTEM_ID,    // system_id
+    MAVLINK_COMPONENT_ID,  // component_id
+    &msg,
+    MAVLINK_TARGET_SYSTEM_ID,    // target_system
+    MAVLINK_TARGET_COMPONENT_ID,  // target_component
+    MAV_CMD_DO_SET_MODE,         // command
+    0,                           // confirmation
+    base_mode,                   // param1: base mode flags
+    custom_mode,                 // param2: custom mode number
+    0,                           // param3: unused
+    0,                           // param4: unused
+    0,                           // param5: unused
+    0,                           // param6: unused
+    0                            // param7: unused
+  );
+
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
+  
+  LogProxy::log("Sent mode change command: " + String(mode_name));
+}
+
 
 /**
  * Send a FOLLOW_TARGET message to the drone (Lat/Lon only)
@@ -211,7 +248,7 @@ void send_heartbeat()
 }
 
 // Send command to arm the vehicle
-void send_arm_command(bool arm)
+void send_arm_command(bool arm, bool force)
 {
   mavlink_message_t msg;
 
@@ -224,7 +261,7 @@ void send_arm_command(bool arm)
       MAV_CMD_COMPONENT_ARM_DISARM, // command
       0,                            // confirmation
       arm ? 1.0 : 0.0,              // param1 (1=arm, 0=disarm)
-      0,                            // param2 (force)
+      force && arm ? 2989.0 : 21196.0,     // param2 (force)
       0,                            // param3
       0,                            // param4
       0,                            // param5
