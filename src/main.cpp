@@ -11,7 +11,7 @@
 #include <mavlink/v2.0/common/mavlink.h>
 #include "conf.h"    // Configuration constants
 #include "display.h" // Display abstraction
-#include "clients.h" // Client management
+// Client management is now handled by UDP module
 #include "menu/menu.h"    // Menu system
 #include "button.h"  // Button handling
 #include "gps.h"     // GPS functionality
@@ -19,6 +19,7 @@
 #include "utils.h"   // Utility functions
 #include "proxy.h"   // MAVLink proxy
 #include "udp_module.h"   // UDP module
+#include "log_proxy.h"   // Log proxy
 
 // === Display and Status Variables ===
 StatusDisplay oled;
@@ -32,18 +33,18 @@ void setup() {
     
     // Initialize GPS
     if (!setupGPS()) {
-        Serial.println("Error: GPS initialization failed!");
+        LogProxy::log("Error: GPS initialization failed!");
     }
     
     // Initialize button and display
     setupButton();
     if (!oled.begin()) {
-        Serial.println("Error: Display initialization failed!");
+        LogProxy::log("Error: Display initialization failed!");
     }
 
     // Initialize UDP module (disabled by default)
     if (!udpModule.begin()) {
-        Serial.println("Error: UDP module initialization failed!");
+        LogProxy::log("Error: UDP module initialization failed!");
     }
 
     // Initialize FreeRTOS tasks

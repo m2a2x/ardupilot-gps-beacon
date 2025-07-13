@@ -5,12 +5,13 @@
 #include "conf.h"
 #include "menu/menu.h"
 #include "mavlink_cmds.h"
-#include "clients.h"  // For clients and addOrUpdateClient
+#include "udp_module.h"  // For UDP module client management
 #include "battery.h"  // For battery functions
 #include "utils.h"    // For addMavlinkMessage and new helpers
 #include "udp_module.h"  // For UDP module
 #include "proxy.h"
 #include "menu/flight_modes.h"  // For flight mode functions
+#include "log_proxy.h"  // For logging
 
 #define MISSION_TASK_STACK_SIZE 2048
 #define MISSION_TASK_PRIORITY   1
@@ -44,7 +45,6 @@ SemaphoreHandle_t displayMutex = NULL;
 
 // External variables
 extern StatusDisplay oled;
-extern std::vector<GCSClient> clients;  // From clients.h
 
 // Transmission activity tracking
 static unsigned long lastRxTime = 0;
@@ -67,7 +67,7 @@ void gpsTask(void *pvParameters) {
                 gpsData.isStale = isGPSStale();
                 
                 if (xQueueSend(gpsQueue, &gpsData, 0) != pdPASS) {
-                    Serial.println("Failed to send GPS data to queue");
+                    LogProxy::log("Failed to send GPS data to queue");
                 }
 
                 // Update GPS data
@@ -82,9 +82,8 @@ void gpsTask(void *pvParameters) {
 
 // MAVLink Task
 void mavlinkTask(void *pvParameters) {
-    const TickType_t xDelay = pdMS_TO_TICKS(10); // 10ms delay
+    const TickType_t xDelay = pdMS_TO_TICKS(1); // 1ms delay
     const TickType_t heartbeatDelay = pdMS_TO_TICKS(1000); // 1 second for heartbeat
-    MavlinkMessage msg;
     mavlink_message_t mavlink_msg;
     mavlink_status_t status;
     TickType_t lastHeartbeat = 0;
@@ -105,23 +104,10 @@ void mavlinkTask(void *pvParameters) {
             int bytesReceived = udpModule.receivePacket(packetData, sizeof(packetData), &senderIP);
             
             if (bytesReceived > 0) {
-                msg.length = bytesReceived;
-                memcpy(msg.data, packetData, bytesReceived);
-                msg.sourceIP = senderIP;
-                
-                if (xQueueSend(mavlinkQueue, &msg, 0) != pdPASS) {
-                    Serial.println("Failed to send MAVLink message to queue");
+                // Send raw UDP data directly to radio via proxy
+                if (proxy.writeRaw(packetData, bytesReceived)) {
+                    lastRxTime = millis(); // Track receive activity
                 }
-            }
-        }
-        
-        // Process messages from queue and send to drone
-        if (xQueueReceive(mavlinkQueue, &msg, 0) == pdPASS) {
-            // Send the message to the drone via proxy
-            mavlink_message_t mavlink_msg;
-            memcpy(&mavlink_msg, &msg, sizeof(mavlink_message_t));
-            if (proxy.writeMessage(&mavlink_msg)) {
-                lastRxTime = millis(); // Track receive activity
             }
         }
         
@@ -143,10 +129,27 @@ void mavlinkTask(void *pvParameters) {
                     radio_rssi = radio_status.rssi;
                 }
                 
+                // Handle command acknowledgment for missions
+                if (incoming_msg.msgid == MAVLINK_MSG_ID_COMMAND_ACK) {
+                    mavlink_command_ack_t command_ack;
+                    mavlink_msg_command_ack_decode(&incoming_msg, &command_ack);
+                    handleMissionCommandAck(command_ack.command, command_ack.result);
+                }
+                
+                // Track when we receive data from the drone (for display purposes)
+                lastTxTime = millis();
+                
                 // Convert message to buffer for UDP transmission only if UDP module is enabled
                 len = mavlink_msg_to_send_buffer(buf, &incoming_msg);
-                if (len > 0) {
-                    lastTxTime = millis(); // Track transmit activity
+                if (len > 0 && udpModule.isEnabled()) {
+                    // Rate limit UDP transmission to prevent overwhelming the WiFi stack
+                    static unsigned long lastUdpTxTime = 0;
+                    unsigned long currentTime = millis();
+                    
+                    // Limit to max 50 packets per second (0ms between packets)
+                    // Send to all connected UDP clients
+                    udpModule.broadcastPacket(buf, len);
+                    lastUdpTxTime = currentTime;
                 }
             }
         }
@@ -177,11 +180,11 @@ void displayTask(void *pvParameters) {
             if (xSemaphoreTake(displayMutex, portMAX_DELAY) == pdTRUE) {
                 if (!highlightLines.empty()) {
                     if (!oled.updateWithHighlight(lines, highlightLines)) {
-                        Serial.println("Error: Failed to update display with highlight");
+                        LogProxy::log("Error: Failed to update display with highlight");
                     }
                 } else {
                     if (!oled.update(lines)) {
-                        Serial.println("Error: Failed to update display");
+                        LogProxy::log("Error: Failed to update display");
                     }
                 }
                 xSemaphoreGive(displayMutex);
@@ -218,10 +221,15 @@ void displayTask(void *pvParameters) {
                 lines.push_back("Follow Me: " + String(followMeUpdates));
             }
             
+            // UDP client information if enabled
+            if (udpModule.isEnabled()) {
+                lines.push_back("Clients: " + String(udpModule.getClientCount()));
+            }
+            
             // Update display with mutex protection
             if (xSemaphoreTake(displayMutex, portMAX_DELAY) == pdTRUE) {
                 if (!oled.update(lines)) {
-                    Serial.println("Error: Failed to update display");
+                    LogProxy::log("Error: Failed to update display");
                 }
                 xSemaphoreGive(displayMutex);
             }
@@ -245,10 +253,31 @@ void buttonTask(void *pvParameters) {
 void wifiTask(void *pvParameters) {
     const TickType_t xDelay = pdMS_TO_TICKS(1000); // 1s delay
     bool last_udp_enabled = udpModule.isEnabled();
+    static unsigned long lastHealthCheck = 0;
     
     while (1) {
+        // Check if UDP status changed
+        bool current_udp_enabled = udpModule.isEnabled();
+        if (current_udp_enabled != last_udp_enabled) {
+            last_udp_enabled = current_udp_enabled;
+        }
+        
         // Prune old clients periodically
-        udpModule.pruneClients();
+        if (current_udp_enabled) {
+            size_t beforeCount = udpModule.getClientCount();
+            udpModule.pruneClients();
+            size_t afterCount = udpModule.getClientCount();
+            if (beforeCount != afterCount) {
+                Serial.printf("[WiFi] Pruned clients: %d -> %d\n", (int)beforeCount, (int)afterCount);
+            }
+            
+            // Periodic UDP health check every 30 seconds
+            unsigned long currentTime = millis();
+            if (currentTime - lastHealthCheck > 30000) {
+                // The health check is now handled in broadcastPacket when failures are detected
+                lastHealthCheck = currentTime;
+            }
+        }
         
         vTaskDelay(xDelay);
     }
@@ -274,7 +303,7 @@ void initTasks() {
     gpsQueue = xQueueCreate(GPS_QUEUE_SIZE, sizeof(GPSData));
     
     if (mavlinkQueue == NULL || displayQueue == NULL || gpsQueue == NULL) {
-        Serial.println("Error: Failed to create queues");
+        LogProxy::log("Error: Failed to create queues");
         return;
     }
     
@@ -283,7 +312,7 @@ void initTasks() {
     displayMutex = xSemaphoreCreateMutex();
     
     if (gpsMutex == NULL || displayMutex == NULL) {
-        Serial.println("Error: Failed to create mutexes");
+        LogProxy::log("Error: Failed to create mutexes");
         return;
     }
     
@@ -292,39 +321,39 @@ void initTasks() {
     
     xReturned = xTaskCreatePinnedToCore(gpsTask, "GPS", GPS_TASK_STACK_SIZE, NULL, GPS_TASK_PRIORITY, &gpsTaskHandle, 0);
     if (xReturned != pdPASS) {
-        Serial.println("Error: Failed to create GPS task");
+        LogProxy::log("Error: Failed to create GPS task");
         return;
     }
     
     xReturned = xTaskCreatePinnedToCore(mavlinkTask, "MAVLink", MAVLINK_TASK_STACK_SIZE, NULL, MAVLINK_TASK_PRIORITY, &mavlinkTaskHandle, 1);
     if (xReturned != pdPASS) {
-        Serial.println("Error: Failed to create MAVLink task");
+        LogProxy::log("Error: Failed to create MAVLink task");
         return;
     }
     
     xReturned = xTaskCreatePinnedToCore(displayTask, "Display", DISPLAY_TASK_STACK_SIZE, NULL, DISPLAY_TASK_PRIORITY, &displayTaskHandle, 0);
     if (xReturned != pdPASS) {
-        Serial.println("Error: Failed to create Display task");
+        LogProxy::log("Error: Failed to create Display task");
         return;
     }
     
     xReturned = xTaskCreatePinnedToCore(buttonTask, "Button", BUTTON_TASK_STACK_SIZE, NULL, BUTTON_TASK_PRIORITY, &buttonTaskHandle, 0);
     if (xReturned != pdPASS) {
-        Serial.println("Error: Failed to create Button task");
+        LogProxy::log("Error: Failed to create Button task");
         return;
     }
     
     xReturned = xTaskCreatePinnedToCore(wifiTask, "WiFi", WIFI_TASK_STACK_SIZE, NULL, WIFI_TASK_PRIORITY, &wifiTaskHandle, 1);
     if (xReturned != pdPASS) {
-        Serial.println("Error: Failed to create WiFi task");
+        LogProxy::log("Error: Failed to create WiFi task");
         return;
     }
     
     xReturned = xTaskCreatePinnedToCore(missionTask, "Mission", MISSION_TASK_STACK_SIZE, NULL, MISSION_TASK_PRIORITY, NULL, 0);
     if (xReturned != pdPASS) {
-        Serial.println("Error: Failed to create Mission task");
+        LogProxy::log("Error: Failed to create Mission task");
         return;
     }
     
-    Serial.println("All tasks created successfully");
+    LogProxy::log("All tasks created successfully");
 } 

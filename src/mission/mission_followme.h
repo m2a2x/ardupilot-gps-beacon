@@ -6,5 +6,6 @@ public:
     void start() override;
     void update() override;
     void stop() override;
-    const char* getName() const override { return "FollowMe"; }
+    const char* getName() const override { return "Follow Me"; }
+    const char* getType() const override { return "FollowMe"; }
 }; 

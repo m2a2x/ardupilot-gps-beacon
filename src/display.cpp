@@ -1,12 +1,13 @@
 #include "display.h"
 #include "conf.h"  // For SDA_PIN and SCL_PIN
+#include "log_proxy.h"  // For logging
 
 StatusDisplay::StatusDisplay() : display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1), initialized(false) {}
 
 bool StatusDisplay::begin() {
   Wire.begin(SDA_PIN, SCL_PIN);  // SDA = GPIO23, SCL = GPIO22
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("Error: SSD1306 display not found");
+    LogProxy::log("Error: SSD1306 display not found");
     return false;
   }
   
@@ -23,7 +24,7 @@ bool StatusDisplay::begin() {
 
 bool StatusDisplay::update(const std::vector<String>& lines) {
   if (!initialized) {
-    Serial.println("Error: Display not initialized");
+    LogProxy::log("Error: Display not initialized");
     return false;
   }
 
@@ -35,7 +36,7 @@ bool StatusDisplay::update(const std::vector<String>& lines) {
   int y = 0;
   for (const String& line : lines) {
     if (y + CHAR_HEIGHT > SCREEN_HEIGHT) {
-      Serial.println("Warning: Display overflow, truncating content");
+      LogProxy::log("Warning: Display overflow, truncating content");
       break;
     }
     display.setCursor(0, y);
@@ -49,7 +50,7 @@ bool StatusDisplay::update(const std::vector<String>& lines) {
 
 bool StatusDisplay::update(const char* lines[], size_t count) {
   if (!initialized) {
-    Serial.println("Error: Display not initialized");
+    LogProxy::log("Error: Display not initialized");
     return false;
   }
 
@@ -61,7 +62,7 @@ bool StatusDisplay::update(const char* lines[], size_t count) {
   int y = 0;
   for (size_t i = 0; i < count; ++i) {
     if (y + CHAR_HEIGHT > SCREEN_HEIGHT) {
-      Serial.println("Warning: Display overflow, truncating content");
+      LogProxy::log("Warning: Display overflow, truncating content");
       break;
     }
     display.setCursor(0, y);
@@ -75,7 +76,7 @@ bool StatusDisplay::update(const char* lines[], size_t count) {
 
 bool StatusDisplay::updateWithHighlight(const std::vector<String>& lines, const std::vector<int>& highlightLines) {
   if (!initialized) {
-    Serial.println("Error: Display not initialized");
+    LogProxy::log("Error: Display not initialized");
     return false;
   }
 
@@ -86,7 +87,7 @@ bool StatusDisplay::updateWithHighlight(const std::vector<String>& lines, const 
   int y = 0;
   for (size_t i = 0; i < lines.size(); ++i) {
     if (y + CHAR_HEIGHT > SCREEN_HEIGHT) {
-      Serial.println("Warning: Display overflow, truncating content");
+      LogProxy::log("Warning: Display overflow, truncating content");
       break;
     }
     

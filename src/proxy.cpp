@@ -64,6 +64,19 @@ bool MavlinkProxy::writeMessage(const mavlink_message_t* msg) {
 }
 
 /**
+ * Write raw data to the radio
+ */
+bool MavlinkProxy::writeRaw(const uint8_t* data, size_t len) {
+    if (!data || len == 0) {
+        return false;
+    }
+    
+    // Write raw data directly to radio
+    size_t written = radio.write(data, len);
+    return written == len;
+}
+
+/**
  * Check if data is available to read from the radio
  */
 bool MavlinkProxy::available() {

@@ -1,5 +1,6 @@
 #include "udp_module.h"
 #include <algorithm>
+#include "log_proxy.h"  // For logging
 
 // WiFi AP configuration
 const char* UDP_AP_SSID = "ESP32-MAVLink";
@@ -26,7 +27,7 @@ bool UDPModule::begin() {
     WiFi.softAPConfig(UDP_LOCAL_IP, UDP_LOCAL_IP, UDP_SUBNET_MASK);
     
     initialized = true;
-    Serial.println("UDP module initialized");
+    LogProxy::log("UDP module initialized");
     return true;
 }
 
@@ -38,27 +39,49 @@ bool UDPModule::enable() {
     }
     
     if (enabled) {
+        LogProxy::log("UDP module already enabled");
         return true; // Already enabled
     }
     
+    LogProxy::log("Starting WiFi Access Point...");
     // Start WiFi Access Point
     if (!WiFi.softAP(UDP_AP_SSID, UDP_AP_PASS)) {
-        Serial.println("Error: Failed to start Access Point!");
+        LogProxy::log("Error: Failed to start Access Point!");
         return false;
     }
     
+    LogProxy::log("WiFi AP started successfully");
     delay(1000); // Give WiFi time to start
     
-    // Initialize UDP server
-    if (!udp.begin(UDP_PORT)) {
-        Serial.println("Error: Failed to start UDP server!");
+    LogProxy::log("Starting UDP server on port " + String(UDP_PORT));
+    
+    // Stop any existing UDP connection first
+    udp.stop();
+    delay(100);
+    
+    // Initialize UDP server with retry logic
+    int retryCount = 0;
+    bool udpStarted = false;
+    
+    while (retryCount < 3 && !udpStarted) {
+        udpStarted = udp.begin(UDP_PORT);
+        if (!udpStarted) {
+            LogProxy::log("UDP start attempt " + String(retryCount + 1) + " failed, retrying...");
+            delay(500);
+            retryCount++;
+        }
+    }
+    
+    if (!udpStarted) {
+        LogProxy::log("Error: Failed to start UDP server after 3 attempts!");
         WiFi.softAPdisconnect(true);
         return false;
     }
     
     enabled = true;
-    Serial.printf("UDP module enabled - AP: %s, Port: %d\n", UDP_AP_SSID, UDP_PORT);
-    Serial.printf("ESP32 IP: %s\n", WiFi.softAPIP().toString().c_str());
+    LogProxy::log("UDP module enabled - AP: " + String(UDP_AP_SSID) + ", Port: " + String(UDP_PORT));
+    LogProxy::log("ESP32 IP: " + WiFi.softAPIP().toString());
+    LogProxy::log("UDP server is ready to receive connections");
     
     return true;
 }
@@ -78,7 +101,7 @@ void UDPModule::disable() {
     clients.clear();
     
     enabled = false;
-    Serial.println("UDP module disabled");
+    LogProxy::log("UDP module disabled");
 }
 
 bool UDPModule::isEnabled() const {
@@ -98,26 +121,55 @@ bool UDPModule::sendPacket(const uint8_t* data, size_t len, IPAddress ip) {
         return false;
     }
     
+    // Try to send the packet with error handling
     udp.beginPacket(ip, UDP_PORT);
-    udp.write(data, len);
+    size_t written = udp.write(data, len);
     bool ok = udp.endPacket();
     
-    if (!ok) {
-        Serial.printf("[ERROR] UDP send failed to %s (%d bytes)\n", ip.toString().c_str(), len);
+    if (!ok || written != len) {
+        LogProxy::log("UDP send failed to " + ip.toString() + " (" + String(len) + " bytes, written: " + String(written) + ")");
+        return false;
     }
     
-    return ok;
+    return true;
 }
 
 int UDPModule::broadcastPacket(const uint8_t* data, size_t len) {
-    if (!enabled || clients.empty()) {
+    if (!enabled) {
+        return 0;
+    }
+    
+    if (clients.empty()) {
         return 0;
     }
     
     int sentCount = 0;
+    int failedCount = 0;
+    
     for (const auto& client : clients) {
         if (sendPacket(data, len, client.ip)) {
             sentCount++;
+        } else {
+            failedCount++;
+        }
+    }
+    
+    // If we have too many failures, try to reset the UDP connection
+    if (failedCount > 0 && sentCount == 0 && clients.size() > 0) {
+        static unsigned long lastResetTime = 0;
+        unsigned long currentTime = millis();
+        
+        // Only reset once every 10 seconds to avoid constant resets
+        if (currentTime - lastResetTime > 10000) {
+            LogProxy::log("Multiple send failures detected, resetting UDP connection...");
+            udp.stop();
+            delay(100);
+            if (udp.begin(UDP_PORT)) {
+                LogProxy::log("UDP connection reset successfully");
+            } else {
+                LogProxy::log("Failed to reset UDP connection");
+            }
+            lastResetTime = currentTime;
         }
     }
     
@@ -160,7 +212,7 @@ void UDPModule::addOrUpdateClient(IPAddress ip) {
     }
     
     clients.push_back({ip, millis()});
-    Serial.printf("New GCS client: %s\n", ip.toString().c_str());
+    LogProxy::log("New GCS client connected: " + ip.toString() + " (Total: " + String(clients.size()) + ")");
 }
 
 void UDPModule::pruneClients() {
@@ -199,4 +251,13 @@ int8_t UDPModule::getRSSI() const {
 
 WiFiUDP& UDPModule::getUDP() {
     return udp;
+}
+
+String UDPModule::getStats() {
+    String stats = "UDP Stats: ";
+    stats += "Enabled=" + String(enabled ? "YES" : "NO");
+    stats += ", Clients=" + String(clients.size());
+    stats += ", WiFi=" + String(WiFi.softAPgetStationNum());
+    stats += ", IP=" + WiFi.softAPIP().toString();
+    return stats;
 } 

@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "mavlink_cmds.h"
 #include "gps.h"
+#include "log_proxy.h"  // For logging
 
 void GoToMission::start() {
     send_set_mode("GUIDED");
@@ -24,9 +25,9 @@ void GoToMission::start() {
         target_set = true;
         update();
         
-        Serial.println("Lat=" + String(target_lat, 6) + " Lon=" + String(target_lon, 6) + " Alt=" + String(target_alt));
+        LogProxy::log("Lat=" + String(target_lat, 6) + " Lon=" + String(target_lon, 6) + " Alt=" + String(target_alt));
     } else {
-        Serial.println("No GPS fix available, cannot set target");
+        LogProxy::log("No GPS fix available, cannot set target");
         target_set = false;
     }
 }

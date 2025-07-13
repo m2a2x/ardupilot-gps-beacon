@@ -137,6 +137,24 @@ public:
      * @return Reference to the WiFiUDP instance
      */
     WiFiUDP& getUDP();
+    
+    /**
+     * Get UDP statistics for debugging
+     * @return String with UDP statistics
+     */
+    String getStats();
+    
+    /**
+     * Send a test packet to verify UDP functionality
+     * @param testIP Target IP address for test packet
+     * @return true if test packet was sent successfully
+     */
+    bool sendTestPacket(IPAddress testIP);
+    
+    /**
+     * Print current UDP status for debugging
+     */
+    void printStatus();
 };
 
 // Global UDP module instance

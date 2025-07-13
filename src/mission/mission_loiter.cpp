@@ -1,13 +1,14 @@
 #include "mission_loiter.h"
 #include <Arduino.h>
 #include "mavlink_cmds.h"
+#include "log_proxy.h"  // For logging
 #include "gps.h"
 
 void LoiterMission::start() {
-    Serial.println("LoiterMission: start");
+    LogProxy::log("LoiterMission: start");
     currentState = SET_MODE;
     stateStartTime = millis();
-    Serial.println("Starting loiter mission sequence");
+    LogProxy::log("Starting loiter mission sequence");
 }
 
 void LoiterMission::update() {
@@ -17,14 +18,14 @@ void LoiterMission::update() {
             send_set_mode("GUIDED");
             currentState = WAIT_AFTER_MODE;
             stateStartTime = millis();
-            Serial.println("Set mode to GUIDED, waiting 3 seconds");
+            LogProxy::log("Set mode to GUIDED, waiting 3 seconds");
             break;
             
         case WAIT_AFTER_MODE:
             if (millis() - stateStartTime >= 3000) { // Wait 3 seconds
                 currentState = ARM;
                 stateStartTime = millis();
-                Serial.println("Mode set, proceeding to arm");
+                LogProxy::log("Mode set, proceeding to arm");
             }
             break;
             
@@ -33,14 +34,14 @@ void LoiterMission::update() {
             send_arm_command(true);
             currentState = WAIT_AFTER_ARM;
             stateStartTime = millis();
-            Serial.println("Arm command sent, waiting 3 seconds");
+            LogProxy::log("Arm command sent, waiting 3 seconds");
             break;
             
         case WAIT_AFTER_ARM:
             if (millis() - stateStartTime >= 3000) { // Wait 3 seconds
                 currentState = TAKEOFF;
                 stateStartTime = millis();
-                Serial.println("Armed, proceeding to takeoff");
+                LogProxy::log("Armed, proceeding to takeoff");
             }
             break;
             
@@ -55,7 +56,7 @@ void LoiterMission::update() {
 }
 
 void LoiterMission::stop() {
-    Serial.println("LoiterMission: stop");
+    LogProxy::log("LoiterMission: stop");
     // Optionally send a mode change or cleanup
 }
 
@@ -68,7 +69,7 @@ void LoiterMission::executeTakeoff() {
     if (currentMillis - stateStartTime > 10000) { // Wait 10 seconds for takeoff
         currentState = LOITER;
         stateStartTime = currentMillis;
-        Serial.println("Moving to LOITER state");
+        LogProxy::log("Moving to LOITER state");
         // Loiter mode already set at start, no need to set it again
     }
 } 

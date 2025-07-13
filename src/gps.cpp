@@ -1,5 +1,6 @@
 #include "gps.h"
 #include "conf.h"  // For GPS_RX_PIN and GPS_TX_PIN
+#include "log_proxy.h"  // For logging
 
 HardwareSerial gpsSerial(2);
 TinyGPSPlus gps;
@@ -36,15 +37,11 @@ double getLongitude() {
 
 double getAltitude() {
   if (!gps.altitude.isValid()) {
-    // Serial.println("GPS: Altitude not valid");
     return MIN_ALTITUDE;
   }
   
   double alt = gps.altitude.meters();
   if (alt < MIN_ALTITUDE) {
-    // Serial.print("GPS: Negative altitude detected: ");
-    // Serial.print(alt);
-    // Serial.println("m, using minimum altitude");
     return MIN_ALTITUDE;
   }
   

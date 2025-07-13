@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "conf.h"  // For BUTTON_PIN and LONG_PRESS_MS
 #include "menu/menu.h"  // For menu functions
+#include "log_proxy.h"  // For logging
 
 // Button state variables
 static unsigned long pressStartTime = 0;
@@ -23,18 +24,18 @@ void setupButton() {
   
   // Test the button state on startup
   bool initialState = digitalRead(BUTTON_PIN);
-  Serial.println("Button initialized on pin " + String(BUTTON_PIN));
-  Serial.println("Initial button state: " + String(initialState ? "HIGH" : "LOW"));
+  LogProxy::log("Button initialized on pin " + String(BUTTON_PIN));
+  LogProxy::log("Initial button state: " + String(initialState ? "HIGH" : "LOW"));
   
   // Wait a moment and test again
   delay(100);
   bool testState = digitalRead(BUTTON_PIN);
-  Serial.println("Button test state: " + String(testState ? "HIGH" : "LOW"));
+  LogProxy::log("Button test state: " + String(testState ? "HIGH" : "LOW"));
   
   if (initialState != testState) {
-    Serial.println("WARNING: Button state is unstable!");
+    LogProxy::log("WARNING: Button state is unstable!");
   } else {
-    Serial.println("Button state is stable");
+    LogProxy::log("Button state is stable");
   }
 }
 

@@ -1,6 +1,11 @@
 #include "utils.h"
+#include "conf.h"
+#include "gps.h"
+#include "mission/mission_followme_complete.h"
+#include <mavlink/v2.0/common/mavlink.h>
 #include <algorithm>  // For std::remove_if
 #include <set>        // For std::set
+#include <cstring>    // For strcmp
 #include "mission/mission_loiter.h"  // For LoiterMission
 #include "menu/flight_modes.h"  // For flight mode functions
 
@@ -821,4 +826,20 @@ String getCurrentMissionUpdateCount() {
         return String(currentMission->getUpdateCount());
     }
     return "0";
+}
+
+/**
+ * Handle command acknowledgment for the current mission
+ * @param command The command that was acknowledged
+ * @param result The result of the command
+ */
+void handleMissionCommandAck(uint16_t command, uint8_t result) {
+    if (currentMission != nullptr) {
+        // Check if the current mission is a FollowMeCompleteMission using string comparison
+        if (strcmp(currentMission->getType(), "FollowMeComplete") == 0) {
+            // Cast to FollowMeCompleteMission and call the callback
+            FollowMeCompleteMission* autoMission = static_cast<FollowMeCompleteMission*>(currentMission);
+            autoMission->onCommandAck(command, result);
+        }
+    }
 } 

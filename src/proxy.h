@@ -56,6 +56,14 @@ public:
     bool writeMessage(const mavlink_message_t* msg);
     
     /**
+     * Write raw data to the radio
+     * @param data Pointer to the data to send
+     * @param len Length of the data
+     * @return true if data was sent successfully, false otherwise
+     */
+    bool writeRaw(const uint8_t* data, size_t len);
+    
+    /**
      * Check if data is available to read from the radio
      * @return true if data is available, false otherwise
      */

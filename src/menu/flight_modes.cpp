@@ -1,11 +1,13 @@
 #include "flight_modes.h"
 #include "mission/mission_guided.h"
 #include "mission/mission_followme.h"
+#include "mission/mission_followme_complete.h"
 #include "mission/mission_goto.h"
 #include "mission/mission_arm.h"
 #include "mission/mission_loiter.h"
 #include "mavlink_cmds.h"  // For send_set_mode
 #include "utils.h"
+#include "log_proxy.h"  // For logging
 
 // External declarations
 extern Mission* currentMission;  // From utils.cpp
@@ -34,34 +36,40 @@ bool executeFlightMode(FlightMode mode) {
     case FLIGHT_MODE_GUIDED:
       currentMission = new GuidedMission();
       currentMission->start();
-      Serial.println("Guided Mode started");
+      LogProxy::log("Guided Mode started");
       return true;
 
     case FLIGHT_MODE_FOLLOW_ME:
       currentMission = new FollowMeMission();
       currentMission->start();
-      Serial.println("Follow Me Mode started");
+      LogProxy::log("Follow Me Mode started");
+      return true;
+
+    case FLIGHT_MODE_AUTO:
+      currentMission = new FollowMeCompleteMission();
+      currentMission->start();
+      LogProxy::log("Auto Mode started");
       return true;
 
     case FLIGHT_MODE_GO_TO:
       currentMission = new GoToMission();
       currentMission->start();
-      Serial.println("Go To Mode started");
+      LogProxy::log("Go To Mode started");
       return true;
 
     case FLIGHT_MODE_ARM:
       currentMission = new ArmMission();
       currentMission->start();
-      Serial.println("Arm Mode started");
+      LogProxy::log("Arm Mode started");
       return true;
 
     case FLIGHT_MODE_BRAKE:
       send_set_mode("BRAKE");
-      Serial.println("Break Mode started");
+      LogProxy::log("Break Mode started");
       return true;
 
     default:
-      Serial.println("Unknown flight mode");
+      LogProxy::log("Unknown flight mode");
       return false;
   }
 }
@@ -83,34 +91,40 @@ bool startFlightMode(FlightMode mode) {
     case FLIGHT_MODE_GUIDED:
       currentMission = new GuidedMission();
       currentMission->start();
-      Serial.println("Guided Mode started");
+      LogProxy::log("Guided Mode started");
       return true;
 
     case FLIGHT_MODE_FOLLOW_ME:
       currentMission = new FollowMeMission();
       currentMission->start();
-      Serial.println("Follow Me Mode started");
+      LogProxy::log("Follow Me Mode started");
+      return true;
+
+    case FLIGHT_MODE_AUTO:
+      currentMission = new FollowMeCompleteMission();
+      currentMission->start();
+      LogProxy::log("Auto Mode started");
       return true;
 
     case FLIGHT_MODE_GO_TO:
       currentMission = new GoToMission();
       currentMission->start();
-      Serial.println("Go To Mode started");
+      LogProxy::log("Go To Mode started");
       return true;
 
     case FLIGHT_MODE_ARM:
       currentMission = new ArmMission();
       currentMission->start();
-      Serial.println("Arm Mode started");
+      LogProxy::log("Arm Mode started");
       return true;
 
     case FLIGHT_MODE_BRAKE:
       send_set_mode("BRAKE");
-      Serial.println("Break Mode started");
+      LogProxy::log("Break Mode started");
       return true;
 
     default:
-      Serial.println("Unknown flight mode");
+      LogProxy::log("Unknown flight mode");
       return false;
   }
 }
@@ -126,10 +140,10 @@ bool stopFlightMode() {
     currentMission = nullptr;
     // Start Break mode (Loiter)
     send_set_mode("BRAKE");
-    Serial.println("Break Mode started");
+    LogProxy::log("Break Mode started");
     return true;
   }
-  Serial.println("No active flight mode to stop");
+  LogProxy::log("No active flight mode to stop");
   return false;
 }
 
@@ -154,6 +168,8 @@ bool isFlightModeActive(FlightMode mode) {
       return activeMode == "Guided Mode";
     case FLIGHT_MODE_FOLLOW_ME:
       return activeMode == "Follow Me";
+    case FLIGHT_MODE_AUTO:
+      return activeMode == "Auto";
     case FLIGHT_MODE_GO_TO:
       return activeMode == "GoTo";
     case FLIGHT_MODE_ARM:
@@ -196,6 +212,13 @@ void getFlightModesDisplay(std::vector<String> &lines) {
     followMeLine += " (" + getCurrentMissionUpdateCount() + " updates)";
   }
   lines.push_back(followMeLine);
+
+  // Auto
+  String autoLine = "  Auto";
+  if (activeMode == "Auto") {
+    autoLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+  }
+  lines.push_back(autoLine);
   
   lines.push_back("  Go To");
   lines.push_back("  Arm");
@@ -229,22 +252,30 @@ void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<
     highlightLines.push_back(2);
   }
   lines.push_back(followMeLine);
+
+  // Auto
+  String autoLine = (selectedOption == 2 ? "> " : "  ") + String("Auto");
+  if (activeMode == "Auto") {
+    autoLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    highlightLines.push_back(3);
+  }
+  lines.push_back(autoLine);
   
   // Go To
-  String goToLine = (selectedOption == 2 ? "> " : "  ") + String("Go To");
+  String goToLine = (selectedOption == 3 ? "> " : "  ") + String("Go To");
   if (activeMode == "GoTo") {
-    highlightLines.push_back(3);
+    highlightLines.push_back(4);
   }
   lines.push_back(goToLine);
   
   // Arm
-  String armLine = (selectedOption == 3 ? "> " : "  ") + String("Arm");
+  String armLine = (selectedOption == 4 ? "> " : "  ") + String("Arm");
   if (activeMode == "Arm") {
-    highlightLines.push_back(4);
+    highlightLines.push_back(5);
   }
   lines.push_back(armLine);
   
   // Back
-  String backLine = (selectedOption == 4 ? "> " : "  ") + String("Back");
+  String backLine = (selectedOption == 5 ? "> " : "  ") + String("Back");
   lines.push_back(backLine);
 } 

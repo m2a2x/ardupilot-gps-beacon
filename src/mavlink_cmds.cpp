@@ -1,5 +1,6 @@
 #include "mavlink_cmds.h"
 #include "conf.h"
+#include "log_proxy.h"  // For logging
 #include "proxy.h"
 #include "flight_modes.h"
 
@@ -394,5 +395,5 @@ void request_radio_status(int32_t interval_ms) {
   // Send message through proxy
   sendMavlinkMessage(&msg);
   
-  Serial.println("Requested radio status messages with interval: " + String(interval_ms) + "ms");
+  LogProxy::log("Requested radio status messages with interval: " + String(interval_ms) + "ms");
 }

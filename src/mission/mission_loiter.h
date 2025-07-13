@@ -23,6 +23,7 @@ public:
     void update() override;
     void stop() override;
     const char* getName() const override { return "Loiter"; }
+    const char* getType() const override { return "Loiter"; }
     
 private:
     void executeTakeoff();

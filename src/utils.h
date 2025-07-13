@@ -132,6 +132,9 @@ extern Mission* currentMission;
 // Mission management
 void getActiveFlightModeDisplay(std::vector<String> &lines);
 
+// Mission callback for command acknowledgments
+void handleMissionCommandAck(uint16_t command, uint8_t result);
+
 /**
  * Get the update count from the currently active mission
  * @return Update count as string, or "0" if no mission is active
