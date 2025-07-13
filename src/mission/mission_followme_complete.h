@@ -54,6 +54,6 @@ public:
     // Check if mission is in follow mode
     bool isInFollowMode() const { return currentState == FOLLOW_MODE; }
     
-    // Get current state for debugging
-    const char* getCurrentStateName() const;
+    // Override the base class method to provide current state
+    const char* getCurrentStateName() const override;
 }; 

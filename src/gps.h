@@ -2,6 +2,7 @@
 #include <TinyGPS++.h>
 #include <HardwareSerial.h>
 #include "conf.h"  // For GPS_RX_PIN and GPS_TX_PIN
+#include "gps_simulate.h"  // For GPS simulation functionality
 
 // GPS timeout configuration
 const unsigned long GPS_TIMEOUT_MS = 5000;  // 5 seconds timeout
@@ -56,3 +57,15 @@ int getSatelliteCount();
  * @return true if no GPS data received within timeout period
  */
 bool isGPSStale();
+
+/**
+ * Enable or disable GPS simulation mode
+ * @param enable true to enable simulation, false to use real GPS
+ */
+void setGPSSimulation(bool enable);
+
+/**
+ * Check if GPS simulation mode is enabled
+ * @return true if simulation mode is active
+ */
+bool isGPSSimulationEnabled();

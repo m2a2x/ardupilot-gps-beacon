@@ -4,6 +4,7 @@
 // Network configuration
 #define GROUNDSTATION_IP 192,168,4,1  // IP of QGroundControl machine
 #define MAVLINK_BAUD 57600
+#define GPS_BAUD 9600
 
 // Common MAVLink system and component IDs
 extern const uint8_t MAVLINK_SYSTEM_ID;

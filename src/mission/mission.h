@@ -15,6 +15,9 @@ public:
     unsigned long getUpdateCount() const { return updateCount; }
     void resetUpdateCount() { updateCount = 0; }
     
+    // Get current state for display (default implementation returns "Unknown")
+    virtual const char* getCurrentStateName() const { return "Unknown"; }
+    
 protected:
     unsigned long updateCount = 0;  // Counter for successful updates
 }; 

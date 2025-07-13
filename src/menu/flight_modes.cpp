@@ -203,6 +203,9 @@ void getFlightModesDisplay(std::vector<String> &lines) {
   String guidedLine = "  Guided Mode";
   if (activeMode == "Guided Mode") {
     guidedLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      guidedLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
   }
   lines.push_back(guidedLine);
   
@@ -210,6 +213,9 @@ void getFlightModesDisplay(std::vector<String> &lines) {
   String followMeLine = "  Follow Me";
   if (activeMode == "Follow Me") {
     followMeLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      followMeLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
   }
   lines.push_back(followMeLine);
 
@@ -217,6 +223,9 @@ void getFlightModesDisplay(std::vector<String> &lines) {
   String autoLine = "  Auto";
   if (activeMode == "Auto") {
     autoLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      autoLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
   }
   lines.push_back(autoLine);
   
@@ -241,6 +250,9 @@ void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<
   String guidedLine = (selectedOption == 0 ? "> " : "  ") + String("Guided Mode");
   if (activeMode == "Guided Mode") {
     guidedLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      guidedLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
     highlightLines.push_back(1);
   }
   lines.push_back(guidedLine);
@@ -249,6 +261,9 @@ void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<
   String followMeLine = (selectedOption == 1 ? "> " : "  ") + String("Follow Me");
   if (activeMode == "Follow Me") {
     followMeLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      followMeLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
     highlightLines.push_back(2);
   }
   lines.push_back(followMeLine);
@@ -257,6 +272,9 @@ void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<
   String autoLine = (selectedOption == 2 ? "> " : "  ") + String("Auto");
   if (activeMode == "Auto") {
     autoLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      autoLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
     highlightLines.push_back(3);
   }
   lines.push_back(autoLine);
