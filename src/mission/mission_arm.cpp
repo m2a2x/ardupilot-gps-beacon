@@ -8,24 +8,24 @@ void ArmMission::start() {
     currentState = ARM;
     stateStartTime = millis();
     send_set_mode("GUIDED");
-    LogProxy::log("Starting " + String(shouldArm ? "arm" : "disarm") + " mission");
+    LogProxy::log("ArmMission: Starting arm mission");
 }
 
 void ArmMission::update() {
     switch (currentState) {
         case ARM:
             // Send arm/disarm command
-            send_arm_command(shouldArm, true);
+            send_arm_command(true, true);
             currentState = WAIT_AFTER_ARM;
             stateStartTime = millis();
-            LogProxy::log(String(shouldArm ? "Arm" : "Disarm") + " command sent, waiting 3 seconds");
+            LogProxy::log("ArmMission: Arm command sent, waiting 3 seconds");
             break;
             
         case WAIT_AFTER_ARM:
             if (millis() - stateStartTime >= 3000) { // Wait 3 seconds
                 currentState = COMPLETE;
                 stateStartTime = millis();
-                LogProxy::log(String(shouldArm ? "Arm" : "Disarm") + " mission completed");
+                LogProxy::log("ArmMission: Arm mission completed");
             }
             break;
             

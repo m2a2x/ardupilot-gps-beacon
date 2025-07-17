@@ -434,3 +434,37 @@ void request_radio_status(int32_t interval_ms) {
   
   LogProxy::log("Requested radio status messages with interval: " + String(interval_ms) + "ms");
 }
+
+/**
+ * Request status text messages from the autopilot
+ * This function sends a MAVLink COMMAND_LONG message with SET_MESSAGE_INTERVAL
+ * to request periodic status text updates
+ * 
+ * @param interval_ms Interval between messages in milliseconds (0 = default rate, -1 = disable)
+ */
+void request_status_text(int32_t interval_ms) {
+  mavlink_message_t msg;
+  
+  // Pack the COMMAND_LONG message with SET_MESSAGE_INTERVAL
+  mavlink_msg_command_long_pack(
+    MAVLINK_SYSTEM_ID,    // system_id
+    MAVLINK_COMPONENT_ID,  // component_id
+    &msg,
+    MAVLINK_TARGET_SYSTEM_ID,    // target_system
+    MAVLINK_TARGET_COMPONENT_ID,    // target_component
+    MAV_CMD_SET_MESSAGE_INTERVAL,   // command
+    0,    // confirmation
+    MAVLINK_MSG_ID_STATUSTEXT,      // param1: message ID
+    interval_ms,                    // param2: interval in milliseconds
+    0,    // param3: use for index ID if required
+    0,    // param4: unused
+    0,    // param5: unused
+    0,    // param6: unused
+    0     // param7: unused
+  );
+
+  // Send message through proxy
+  sendMavlinkMessage(&msg);
+  
+  LogProxy::log("Requested status text messages with interval: " + String(interval_ms) + "ms");
+}

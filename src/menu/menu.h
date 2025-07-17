@@ -10,7 +10,6 @@
 enum MenuScreen {
   MAIN_MENU,      ///< Main menu with primary options
   GPS_INFO,       ///< GPS information screen
-  MAVLINK_MESSAGES, ///< MAVLink messages screen (basic view)
   MAVLINK_DETAILS, ///< MAVLink messages screen (detailed view with fields)
   FLIGHT_MODES,   ///< Flight mode selection sub-menu
   FLIGHT_MODE_STATUS, ///< Individual flight mode status screen
@@ -21,7 +20,8 @@ enum MenuScreen {
   FOLLOW_ME_CONTROL,   ///< Follow me mode control screen (start/stop/back)
   AUTO_CONTROL, ///< Auto mode control screen (start/stop/back)
   GO_TO_CONTROL,       ///< Go to mode control screen (start/stop/back)
-  ARM_CONTROL          ///< Arm mode control screen (start/stop/back)
+  ARM_CONTROL,         ///< Arm mode control screen (start/stop/back)
+  LOITER_CONTROL       ///< Loiter mode control screen (start/stop/back)
 };
 
 /**
@@ -31,7 +31,6 @@ enum MenuScreen {
 enum MenuOption {
   FLIGHT_MODES_MENU, ///< Enter flight modes sub-menu
   GPS_INFO_SCREEN,   ///< Enter GPS info screen
-  MAVLINK_MESSAGES_SCREEN, ///< Enter MAVLink messages screen
   MAVLINK_DETAILS_SCREEN, ///< Enter detailed MAVLink messages screen
   SETTINGS_MENU,     ///< Enter settings sub-menu
   RESTART,        ///< Restart the ESP32
@@ -41,6 +40,7 @@ enum MenuOption {
   GUIDED_MODE,    ///< Enter guided mode control
   FOLLOW_ME,      ///< Enter follow me mode control
   AUTO, ///< Enter auto mode control
+  LOITER, ///< Enter loiter mode control
   GO_TO,          ///< Enter go to mode control
   ARM,            ///< Enter arm mode control
   BACK,           ///< Go back to previous menu

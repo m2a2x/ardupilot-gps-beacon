@@ -63,9 +63,15 @@ bool executeFlightMode(FlightMode mode) {
       LogProxy::log("Arm Mode started");
       return true;
 
+    case FLIGHT_MODE_LOITER:
+      currentMission = new LoiterMission();
+      currentMission->start();
+      LogProxy::log("Loiter Mode started");
+      return true;
+
     case FLIGHT_MODE_BRAKE:
-      send_set_mode("BRAKE");
-      LogProxy::log("Break Mode started");
+      send_set_mode("LOITER");
+      LogProxy::log("Loiter Mode started");
       return true;
 
     default:
@@ -118,9 +124,15 @@ bool startFlightMode(FlightMode mode) {
       LogProxy::log("Arm Mode started");
       return true;
 
+    case FLIGHT_MODE_LOITER:
+      currentMission = new LoiterMission();
+      currentMission->start();
+      LogProxy::log("Loiter Mode started");
+      return true;
+
     case FLIGHT_MODE_BRAKE:
-      send_set_mode("BRAKE");
-      LogProxy::log("Break Mode started");
+      send_set_mode("LOITER");
+      LogProxy::log("Loiter Mode started");
       return true;
 
     default:
@@ -139,8 +151,8 @@ bool stopFlightMode() {
     delete currentMission;
     currentMission = nullptr;
     // Start Break mode (Loiter)
-    send_set_mode("BRAKE");
-    LogProxy::log("Break Mode started");
+    send_set_mode("LOITER");
+    LogProxy::log("Loiter Mode started");
     return true;
   }
   LogProxy::log("No active flight mode to stop");
@@ -174,6 +186,8 @@ bool isFlightModeActive(FlightMode mode) {
       return activeMode == "GoTo";
     case FLIGHT_MODE_ARM:
       return activeMode == "Arm";
+    case FLIGHT_MODE_LOITER:
+      return activeMode == "Loiter";
     default:
       return false;
   }
@@ -228,7 +242,17 @@ void getFlightModesDisplay(std::vector<String> &lines) {
     }
   }
   lines.push_back(autoLine);
-  
+
+  // Loiter
+  String loiterLine = "  Loiter";
+  if (activeMode == "Loiter") {
+    loiterLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      loiterLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
+  }
+  lines.push_back(loiterLine);
+
   lines.push_back("  Go To");
   lines.push_back("  Arm");
   lines.push_back("  Back");
@@ -278,22 +302,33 @@ void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<
     highlightLines.push_back(3);
   }
   lines.push_back(autoLine);
-  
-  // Go To
-  String goToLine = (selectedOption == 3 ? "> " : "  ") + String("Go To");
-  if (activeMode == "GoTo") {
+
+  // Loiter
+  String loiterLine = (selectedOption == 3 ? "> " : "  ") + String("Loiter");
+  if (activeMode == "Loiter") {
+    loiterLine += " (" + getCurrentMissionUpdateCount() + " updates)";
+    if (currentMission != nullptr) {
+      loiterLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+    }
     highlightLines.push_back(4);
   }
-  lines.push_back(goToLine);
-  
-  // Arm
-  String armLine = (selectedOption == 4 ? "> " : "  ") + String("Arm");
-  if (activeMode == "Arm") {
+  lines.push_back(loiterLine);
+
+  // Go To
+  String goToLine = (selectedOption == 4 ? "> " : "  ") + String("Go To");
+  if (activeMode == "GoTo") {
     highlightLines.push_back(5);
   }
+  lines.push_back(goToLine);
+
+  // Arm
+  String armLine = (selectedOption == 5 ? "> " : "  ") + String("Arm");
+  if (activeMode == "Arm") {
+    highlightLines.push_back(6);
+  }
   lines.push_back(armLine);
-  
+
   // Back
-  String backLine = (selectedOption == 5 ? "> " : "  ") + String("Back");
+  String backLine = (selectedOption == 6 ? "> " : "  ") + String("Back");
   lines.push_back(backLine);
 } 

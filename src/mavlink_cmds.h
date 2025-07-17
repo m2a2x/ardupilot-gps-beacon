@@ -169,4 +169,13 @@ void calculate_offset_position(double target_lat, double target_lon,
  * 
  * @param interval_ms Interval between messages in milliseconds (0 = default rate, -1 = disable)
  */
-void request_radio_status(int32_t interval_ms = 1000); 
+void request_radio_status(int32_t interval_ms = 1000);
+
+/**
+ * Request status text messages from the autopilot
+ * This function sends a MAVLink COMMAND_LONG message with SET_MESSAGE_INTERVAL
+ * to request periodic status text updates
+ * 
+ * @param interval_ms Interval between messages in milliseconds (0 = default rate, -1 = disable)
+ */
+void request_status_text(int32_t interval_ms = 1000); 

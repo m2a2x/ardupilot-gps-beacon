@@ -7,7 +7,7 @@
 #include "mavlink_cmds.h"
 #include "udp_module.h"  // For UDP module client management
 #include "battery.h"  // For battery functions
-#include "utils.h"    // For addMavlinkMessage and new helpers
+#include "utils.h"    // For mission helpers
 #include "udp_module.h"  // For UDP module
 #include "proxy.h"
 #include "menu/flight_modes.h"  // For flight mode functions
@@ -118,9 +118,6 @@ void mavlinkTask(void *pvParameters) {
         
         while (proxy.available()) {
             if (proxy.readMessage(&incoming_msg)) {
-                
-                // Add message to history for menu display with parsed fields
-                addMavlinkMessage(incoming_msg);
                 
                 // Handle radio status message
                 if (incoming_msg.msgid == MAVLINK_MSG_ID_RADIO_STATUS) {

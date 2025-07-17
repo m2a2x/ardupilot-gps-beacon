@@ -1,15 +1,13 @@
 #pragma once
 #include "mission.h"
+#include "flight_validator.h"
 
 class FollowMeCompleteMission : public Mission {
 private:
     enum MissionState {
-        ARM_DRONE,
-        WAIT_ARM_ACK,
         SET_GUIDED_MODE,
-        WAIT_MODE_ACK,
+        ARM_DRONE,
         TAKEOFF,
-        WAIT_TAKEOFF_ACK,
         WAIT_TAKEOFF_COMPLETE,
         FOLLOW_MODE,
         COMPLETE
@@ -19,7 +17,7 @@ private:
     unsigned long stateStartTime;
     unsigned long lastPositionSend;
     const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
-    const float TAKEOFF_ALTITUDE = 8.0f; // 10 meters
+    const float TAKEOFF_ALTITUDE = 3.0f; // 3 meters
     const double FOLLOW_OFFSET = 3.0; // 3 meters behind
     
     // Verification flags
@@ -30,9 +28,19 @@ private:
     bool modeAckReceived;
     bool takeoffAckReceived;
     
+    // Validation error tracking
+    FlightValidator::ValidationError currentError;
+    unsigned long errorStartTime;
+    
+    // Drone GPS status tracking (informational)
+    uint8_t droneGpsFixType;
+    
+    // Beacon GPS status tracking (mission critical)
+    bool beaconGpsValid;
+    
 public:
     FollowMeCompleteMission() : 
-        currentState(ARM_DRONE), 
+        currentState(SET_GUIDED_MODE), 
         stateStartTime(0), 
         lastPositionSend(0),
         armCommandSent(false),
@@ -40,7 +48,11 @@ public:
         takeoffCommandSent(false),
         armAckReceived(false),
         modeAckReceived(false),
-        takeoffAckReceived(false) {}
+        takeoffAckReceived(false),
+        currentError(FlightValidator::NO_ERROR),
+        errorStartTime(0),
+        droneGpsFixType(GPS_FIX_TYPE_NO_GPS),
+        beaconGpsValid(false) {}
     
     void start() override;
     void update() override;
@@ -50,6 +62,14 @@ public:
     
     // Callback for command acknowledgments
     void onCommandAck(uint16_t command, uint8_t result);
+    
+    // Callback for system status messages
+    void onSystemStatus(uint32_t onboard_control_sensors_present, 
+                       uint32_t onboard_control_sensors_enabled,
+                       uint32_t onboard_control_sensors_health);
+    
+    // Callback for GPS status from drone
+    void onGPSStatus(uint8_t fix_type);
     
     // Check if mission is in follow mode
     bool isInFollowMode() const { return currentState == FOLLOW_MODE; }
