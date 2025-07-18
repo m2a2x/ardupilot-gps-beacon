@@ -3,8 +3,6 @@
 #include "mission/mission_followme.h"
 #include "mission/mission_followme_complete.h"
 #include "mission/mission_goto.h"
-#include "mission/mission_arm.h"
-#include "mission/mission_loiter.h"
 #include "mavlink_cmds.h"  // For send_set_mode
 #include "utils.h"
 #include "log_proxy.h"  // For logging
@@ -12,11 +10,105 @@
 // External declarations
 extern Mission* currentMission;  // From utils.cpp
 
+// Mission factory functions
+static Mission* createGuidedMission() { return new GuidedMission(); }
+static Mission* createFollowMeMission() { return new FollowMeMission(); }
+static Mission* createFollowMeCompleteMission() { return new FollowMeCompleteMission(); }
+static Mission* createGoToMission() { return new GoToMission(); }
+
+// Centralized flight mode configuration
+static const FlightModeConfig FLIGHT_MODE_CONFIGS[] = {
+  {
+    FLIGHT_MODE_GUIDED,
+    "Guided Mode",
+    "Guided Mode",
+    GUIDED_MODE_CONTROL,
+    GUIDED_MODE,
+    createGuidedMission
+  },
+  {
+    FLIGHT_MODE_FOLLOW_ME,
+    "Follow Me",
+    "Follow Me",
+    FOLLOW_ME_CONTROL,
+    FOLLOW_ME,
+    createFollowMeMission
+  },
+  {
+    FLIGHT_MODE_AUTO,
+    "Auto",
+    "Auto",
+    AUTO_CONTROL,
+    AUTO,
+    createFollowMeCompleteMission
+  },
+  {
+    FLIGHT_MODE_GO_TO,
+    "Go To",
+    "GoTo",
+    GO_TO_CONTROL,
+    GO_TO,
+    createGoToMission
+  }
+};
+
+static const int FLIGHT_MODE_COUNT = sizeof(FLIGHT_MODE_CONFIGS) / sizeof(FLIGHT_MODE_CONFIGS[0]);
+
 /**
  * Initialize flight modes system
  */
 void initFlightModes() {
   // Nothing to initialize for now
+}
+
+/**
+ * Get flight mode configuration by enum
+ */
+const FlightModeConfig* getFlightModeConfig(FlightMode mode) {
+  for (int i = 0; i < FLIGHT_MODE_COUNT; i++) {
+    if (FLIGHT_MODE_CONFIGS[i].mode == mode) {
+      return &FLIGHT_MODE_CONFIGS[i];
+    }
+  }
+  return nullptr;
+}
+
+/**
+ * Get flight mode configuration by menu option
+ */
+const FlightModeConfig* getFlightModeConfigByMenuOption(MenuOption menuOption) {
+  for (int i = 0; i < FLIGHT_MODE_COUNT; i++) {
+    if (FLIGHT_MODE_CONFIGS[i].menuOption == menuOption) {
+      return &FLIGHT_MODE_CONFIGS[i];
+    }
+  }
+  return nullptr;
+}
+
+/**
+ * Get flight mode configuration by control screen
+ */
+const FlightModeConfig* getFlightModeConfigByScreen(MenuScreen screen) {
+  for (int i = 0; i < FLIGHT_MODE_COUNT; i++) {
+    if (FLIGHT_MODE_CONFIGS[i].controlScreen == screen) {
+      return &FLIGHT_MODE_CONFIGS[i];
+    }
+  }
+  return nullptr;
+}
+
+/**
+ * Get all flight mode configurations
+ */
+const FlightModeConfig* getAllFlightModeConfigs() {
+  return FLIGHT_MODE_CONFIGS;
+}
+
+/**
+ * Get the number of flight modes
+ */
+int getFlightModeCount() {
+  return FLIGHT_MODE_COUNT;
 }
 
 /**
@@ -32,52 +124,23 @@ bool executeFlightMode(FlightMode mode) {
     currentMission = nullptr;
   }
   
-  switch (mode) {
-    case FLIGHT_MODE_GUIDED:
-      currentMission = new GuidedMission();
-      currentMission->start();
-      LogProxy::log("Guided Mode started");
-      return true;
-
-    case FLIGHT_MODE_FOLLOW_ME:
-      currentMission = new FollowMeMission();
-      currentMission->start();
-      LogProxy::log("Follow Me Mode started");
-      return true;
-
-    case FLIGHT_MODE_AUTO:
-      currentMission = new FollowMeCompleteMission();
-      currentMission->start();
-      LogProxy::log("Auto Mode started");
-      return true;
-
-    case FLIGHT_MODE_GO_TO:
-      currentMission = new GoToMission();
-      currentMission->start();
-      LogProxy::log("Go To Mode started");
-      return true;
-
-    case FLIGHT_MODE_ARM:
-      currentMission = new ArmMission();
-      currentMission->start();
-      LogProxy::log("Arm Mode started");
-      return true;
-
-    case FLIGHT_MODE_LOITER:
-      currentMission = new LoiterMission();
-      currentMission->start();
-      LogProxy::log("Loiter Mode started");
-      return true;
-
-    case FLIGHT_MODE_BRAKE:
-      send_set_mode("LOITER");
-      LogProxy::log("Loiter Mode started");
-      return true;
-
-    default:
-      LogProxy::log("Unknown flight mode");
-      return false;
+  const FlightModeConfig* config = getFlightModeConfig(mode);
+  if (!config) {
+    LogProxy::log("Unknown flight mode");
+    return false;
   }
+  
+
+  
+  if (config->createMission) {
+    currentMission = config->createMission();
+    currentMission->start();
+    LogProxy::log(String(config->displayName) + " started");
+    return true;
+  }
+  
+  LogProxy::log("Flight mode has no mission factory");
+  return false;
 }
 
 /**
@@ -86,59 +149,7 @@ bool executeFlightMode(FlightMode mode) {
  * @return true if mode was successfully started, false otherwise
  */
 bool startFlightMode(FlightMode mode) {
-  // Stop any existing mission first
-  if (currentMission) {
-    currentMission->stop();
-    delete currentMission;
-    currentMission = nullptr;
-  }
-  
-  switch (mode) {
-    case FLIGHT_MODE_GUIDED:
-      currentMission = new GuidedMission();
-      currentMission->start();
-      LogProxy::log("Guided Mode started");
-      return true;
-
-    case FLIGHT_MODE_FOLLOW_ME:
-      currentMission = new FollowMeMission();
-      currentMission->start();
-      LogProxy::log("Follow Me Mode started");
-      return true;
-
-    case FLIGHT_MODE_AUTO:
-      currentMission = new FollowMeCompleteMission();
-      currentMission->start();
-      LogProxy::log("Auto Mode started");
-      return true;
-
-    case FLIGHT_MODE_GO_TO:
-      currentMission = new GoToMission();
-      currentMission->start();
-      LogProxy::log("Go To Mode started");
-      return true;
-
-    case FLIGHT_MODE_ARM:
-      currentMission = new ArmMission();
-      currentMission->start();
-      LogProxy::log("Arm Mode started");
-      return true;
-
-    case FLIGHT_MODE_LOITER:
-      currentMission = new LoiterMission();
-      currentMission->start();
-      LogProxy::log("Loiter Mode started");
-      return true;
-
-    case FLIGHT_MODE_BRAKE:
-      send_set_mode("LOITER");
-      LogProxy::log("Loiter Mode started");
-      return true;
-
-    default:
-      LogProxy::log("Unknown flight mode");
-      return false;
-  }
+  return executeFlightMode(mode);
 }
 
 /**
@@ -150,9 +161,9 @@ bool stopFlightMode() {
     currentMission->stop();
     delete currentMission;
     currentMission = nullptr;
-    // Start Break mode (Loiter)
+    // Send LOITER command to stop the vehicle
     send_set_mode("LOITER");
-    LogProxy::log("Loiter Mode started");
+    LogProxy::log("Flight mode stopped, vehicle in LOITER");
     return true;
   }
   LogProxy::log("No active flight mode to stop");
@@ -165,32 +176,17 @@ bool stopFlightMode() {
  * @return true if the mode is active, false otherwise
  */
 bool isFlightModeActive(FlightMode mode) {
-  if (mode == FLIGHT_MODE_BRAKE) {
-    return false; // BRAKE mode is no longer tracked
-  }
-  
   if (!currentMission) {
     return false;
   }
   
-  String activeMode = currentMission->getName();
-  
-  switch (mode) {
-    case FLIGHT_MODE_GUIDED:
-      return activeMode == "Guided Mode";
-    case FLIGHT_MODE_FOLLOW_ME:
-      return activeMode == "Follow Me";
-    case FLIGHT_MODE_AUTO:
-      return activeMode == "Auto";
-    case FLIGHT_MODE_GO_TO:
-      return activeMode == "GoTo";
-    case FLIGHT_MODE_ARM:
-      return activeMode == "Arm";
-    case FLIGHT_MODE_LOITER:
-      return activeMode == "Loiter";
-    default:
-      return false;
+  const FlightModeConfig* config = getFlightModeConfig(mode);
+  if (!config) {
+    return false;
   }
+  
+  String activeMode = currentMission->getName();
+  return activeMode == config->missionName;
 }
 
 /**
@@ -213,48 +209,16 @@ void getFlightModesDisplay(std::vector<String> &lines) {
   
   String activeMode = getActiveFlightMode();
   
-  // Guided Mode
-  String guidedLine = "  Guided Mode";
-  if (activeMode == "Guided Mode") {
-    guidedLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      guidedLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+  // Add all flight modes
+  for (int i = 0; i < FLIGHT_MODE_COUNT; i++) {
+    const FlightModeConfig& config = FLIGHT_MODE_CONFIGS[i];
+    String line = "  " + String(config.displayName);
+    if (activeMode == config.missionName) {
+      line += " *";
     }
+    lines.push_back(line);
   }
-  lines.push_back(guidedLine);
   
-  // Follow Me
-  String followMeLine = "  Follow Me";
-  if (activeMode == "Follow Me") {
-    followMeLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      followMeLine += " [" + String(currentMission->getCurrentStateName()) + "]";
-    }
-  }
-  lines.push_back(followMeLine);
-
-  // Auto
-  String autoLine = "  Auto";
-  if (activeMode == "Auto") {
-    autoLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      autoLine += " [" + String(currentMission->getCurrentStateName()) + "]";
-    }
-  }
-  lines.push_back(autoLine);
-
-  // Loiter
-  String loiterLine = "  Loiter";
-  if (activeMode == "Loiter") {
-    loiterLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      loiterLine += " [" + String(currentMission->getCurrentStateName()) + "]";
-    }
-  }
-  lines.push_back(loiterLine);
-
-  lines.push_back("  Go To");
-  lines.push_back("  Arm");
   lines.push_back("  Back");
 }
 
@@ -267,68 +231,20 @@ void getFlightModesDisplay(std::vector<String> &lines) {
 void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<int> &highlightLines, int selectedOption) {
   lines.push_back("== FLIGHT MODES ==");
   
-  // Add selection indicators and check for active mode
   String activeMode = getActiveFlightMode();
   
-  // Guided Mode
-  String guidedLine = (selectedOption == 0 ? "> " : "  ") + String("Guided Mode");
-  if (activeMode == "Guided Mode") {
-    guidedLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      guidedLine += " [" + String(currentMission->getCurrentStateName()) + "]";
+  // Add all flight modes
+  for (int i = 0; i < FLIGHT_MODE_COUNT; i++) {
+    const FlightModeConfig& config = FLIGHT_MODE_CONFIGS[i];
+    String line = (selectedOption == i ? "> " : "  ") + String(config.displayName);
+    if (activeMode == config.missionName) {
+      line += " *";
+      highlightLines.push_back(i + 1); // +1 because line 0 is the header
     }
-    highlightLines.push_back(1);
+    lines.push_back(line);
   }
-  lines.push_back(guidedLine);
   
-  // Follow Me
-  String followMeLine = (selectedOption == 1 ? "> " : "  ") + String("Follow Me");
-  if (activeMode == "Follow Me") {
-    followMeLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      followMeLine += " [" + String(currentMission->getCurrentStateName()) + "]";
-    }
-    highlightLines.push_back(2);
-  }
-  lines.push_back(followMeLine);
-
-  // Auto
-  String autoLine = (selectedOption == 2 ? "> " : "  ") + String("Auto");
-  if (activeMode == "Auto") {
-    autoLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      autoLine += " [" + String(currentMission->getCurrentStateName()) + "]";
-    }
-    highlightLines.push_back(3);
-  }
-  lines.push_back(autoLine);
-
-  // Loiter
-  String loiterLine = (selectedOption == 3 ? "> " : "  ") + String("Loiter");
-  if (activeMode == "Loiter") {
-    loiterLine += " (" + getCurrentMissionUpdateCount() + " updates)";
-    if (currentMission != nullptr) {
-      loiterLine += " [" + String(currentMission->getCurrentStateName()) + "]";
-    }
-    highlightLines.push_back(4);
-  }
-  lines.push_back(loiterLine);
-
-  // Go To
-  String goToLine = (selectedOption == 4 ? "> " : "  ") + String("Go To");
-  if (activeMode == "GoTo") {
-    highlightLines.push_back(5);
-  }
-  lines.push_back(goToLine);
-
-  // Arm
-  String armLine = (selectedOption == 5 ? "> " : "  ") + String("Arm");
-  if (activeMode == "Arm") {
-    highlightLines.push_back(6);
-  }
-  lines.push_back(armLine);
-
-  // Back
-  String backLine = (selectedOption == 6 ? "> " : "  ") + String("Back");
+  // Back option
+  String backLine = (selectedOption == FLIGHT_MODE_COUNT ? "> " : "  ") + String("Back");
   lines.push_back(backLine);
 } 

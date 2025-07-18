@@ -1,58 +1,13 @@
 #pragma once
 #include <Arduino.h>
 #include <vector>
+#include "menu_types.h"
 #include "mission/mission.h"
 #include "utils.h"
 
-/**
- * Menu screen types for multi-level navigation
- */
-enum MenuScreen {
-  MAIN_MENU,      ///< Main menu with primary options
-  GPS_INFO,       ///< GPS information screen
-  MAVLINK_DETAILS, ///< MAVLink messages screen (detailed view with fields)
-  FLIGHT_MODES,   ///< Flight mode selection sub-menu
-  FLIGHT_MODE_STATUS, ///< Individual flight mode status screen
-  SETTINGS,       ///< Settings sub-menu
-  GPS_MENU,       ///< GPS control sub-menu
-  MISSION_STATUS, ///< Mission status screen
-  GUIDED_MODE_CONTROL, ///< Guided mode control screen (start/stop/back)
-  FOLLOW_ME_CONTROL,   ///< Follow me mode control screen (start/stop/back)
-  AUTO_CONTROL, ///< Auto mode control screen (start/stop/back)
-  GO_TO_CONTROL,       ///< Go to mode control screen (start/stop/back)
-  ARM_CONTROL,         ///< Arm mode control screen (start/stop/back)
-  LOITER_CONTROL       ///< Loiter mode control screen (start/stop/back)
-};
 
-/**
- * Available menu options for drone control
- * Each option represents a different control function
- */
-enum MenuOption {
-  FLIGHT_MODES_MENU, ///< Enter flight modes sub-menu
-  GPS_INFO_SCREEN,   ///< Enter GPS info screen
-  MAVLINK_DETAILS_SCREEN, ///< Enter detailed MAVLink messages screen
-  SETTINGS_MENU,     ///< Enter settings sub-menu
-  RESTART,        ///< Restart the ESP32
-  EXIT_MENU,      ///< Exit menu system and return to normal operation
-  
-  // Flight modes sub-menu options
-  GUIDED_MODE,    ///< Enter guided mode control
-  FOLLOW_ME,      ///< Enter follow me mode control
-  AUTO, ///< Enter auto mode control
-  LOITER, ///< Enter loiter mode control
-  GO_TO,          ///< Enter go to mode control
-  ARM,            ///< Enter arm mode control
-  BACK,           ///< Go back to previous menu
-  
-  // Flight mode status screen options
-  BACK_TO_FLIGHT_MODES, ///< Go back to flight modes menu
-  
-  // Individual flight mode control options
-  START_MODE,     ///< Start the current flight mode
-  STOP_MODE,      ///< Stop the current flight mode
-  BACK_TO_MODE    ///< Go back to flight modes menu
-};
+
+
 
 /**
  * Menu navigation structure
@@ -63,6 +18,44 @@ struct MenuState {
   bool menuActive;
   int optionCount;  // Number of options in current screen
 };
+
+// Menu option arrays for each screen
+extern const MenuOption MAIN_MENU_OPTIONS[];
+extern const MenuOption FLIGHT_MODES_OPTIONS[];
+extern const MenuOption FLIGHT_MODE_STATUS_OPTIONS[];
+extern const MenuOption SETTINGS_OPTIONS[];
+extern const MenuOption GPS_MENU_OPTIONS[];
+extern const MenuOption FLIGHT_MODE_CONTROL_OPTIONS[];
+
+/**
+ * Get menu options for a specific screen
+ * @param screen The screen to get options for
+ * @return Array of menu options for the screen
+ */
+const MenuOption* getMenuOptions(MenuScreen screen);
+
+/**
+ * Get the number of options for a specific screen
+ * @param screen The screen to get option count for
+ * @return Number of options in the screen
+ */
+int getMenuOptionCount(MenuScreen screen);
+
+/**
+ * Get the next option in sequence for a screen
+ * @param screen The current screen
+ * @param currentOption The current option
+ * @return The next option in sequence
+ */
+MenuOption getNextMenuOption(MenuScreen screen, MenuOption currentOption);
+
+/**
+ * Get the previous option in sequence for a screen
+ * @param screen The current screen
+ * @param currentOption The current option
+ * @return The previous option in sequence
+ */
+MenuOption getPreviousMenuOption(MenuScreen screen, MenuOption currentOption);
 
 /**
  * Enter the menu system

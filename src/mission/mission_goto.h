@@ -1,7 +1,7 @@
 #pragma once
 #include "mission.h"
 
-class GoToMission : public Mission {
+class GoToMission : public BaseMission {
 public:
     void start() override;
     void update() override;
@@ -14,4 +14,9 @@ private:
     double target_lon;
     float target_alt;
     bool target_set;
+    
+protected:
+    void onStart() override;
+    void onStop() override;
+    void onRTL() override;
 }; 

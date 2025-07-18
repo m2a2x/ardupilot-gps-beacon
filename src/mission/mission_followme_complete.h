@@ -76,4 +76,10 @@ public:
     
     // Override the base class method to provide current state
     const char* getCurrentStateName() const override;
+    
+    // Menu control methods - implement required pure virtual functions
+    std::vector<MenuOption> getMenuOptions() const override;
+    void handleMenuAction(MenuOption option) override;
+    void getMenuDisplay(std::vector<String>& lines, MenuOption selectedOption) const override;
+    bool isMenuActive() const override;
 }; 

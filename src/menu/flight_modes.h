@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <vector>
 #include "mission/mission.h"
+#include "menu_types.h"
 
 /**
  * Flight mode types
@@ -10,10 +11,22 @@ enum FlightMode {
   FLIGHT_MODE_GUIDED,
   FLIGHT_MODE_FOLLOW_ME,
   FLIGHT_MODE_AUTO,
-  FLIGHT_MODE_GO_TO,
-  FLIGHT_MODE_ARM,
-  FLIGHT_MODE_LOITER,
-  FLIGHT_MODE_BRAKE
+  FLIGHT_MODE_GO_TO
+};
+
+/**
+ * Flight mode configuration structure
+ */
+struct FlightModeConfig {
+  FlightMode mode;
+  const char* displayName;
+  const char* missionName;
+  MenuScreen controlScreen;
+  MenuOption menuOption;
+  
+  // Mission factory function type
+  typedef Mission* (*MissionFactory)();
+  MissionFactory createMission;
 };
 
 /**
@@ -53,6 +66,39 @@ bool isFlightModeActive(FlightMode mode);
  * @return String name of active mode, or "None" if no mode is active
  */
 String getActiveFlightMode();
+
+/**
+ * Get flight mode configuration by enum
+ * @param mode The flight mode enum
+ * @return Pointer to flight mode configuration, or nullptr if not found
+ */
+const FlightModeConfig* getFlightModeConfig(FlightMode mode);
+
+/**
+ * Get flight mode configuration by menu option
+ * @param menuOption The menu option
+ * @return Pointer to flight mode configuration, or nullptr if not found
+ */
+const FlightModeConfig* getFlightModeConfigByMenuOption(MenuOption menuOption);
+
+/**
+ * Get flight mode configuration by control screen
+ * @param screen The control screen
+ * @return Pointer to flight mode configuration, or nullptr if not found
+ */
+const FlightModeConfig* getFlightModeConfigByScreen(MenuScreen screen);
+
+/**
+ * Get all flight mode configurations
+ * @return Array of flight mode configurations
+ */
+const FlightModeConfig* getAllFlightModeConfigs();
+
+/**
+ * Get the number of flight modes
+ * @return Number of flight modes
+ */
+int getFlightModeCount();
 
 /**
  * Get flight modes display lines for menu

@@ -33,18 +33,40 @@ void GoToMission::start() {
 }
 
 void GoToMission::update() {
-    static unsigned long lastPositionSend = 0;
-    const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
-    
-    // Only send position target if we have a valid target and GPS fix
-    if (target_set && gpsHasFix() && millis() - lastPositionSend >= POSITION_SEND_INTERVAL) {
-        // Send the fixed target coordinates (set once in start())
-        send_position_target(target_lat, target_lon, target_alt);
-        lastPositionSend = millis();
+    if (isRunning) {
+        static unsigned long lastPositionSend = 0;
+        const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
+        
+        // Only send position target if we have a valid target and GPS fix
+        if (target_set && gpsHasFix() && millis() - lastPositionSend >= POSITION_SEND_INTERVAL) {
+            // Send the fixed target coordinates (set once in start())
+            send_position_target(target_lat, target_lon, target_alt);
+            lastPositionSend = millis();
+        }
     }
 }
 
 void GoToMission::stop() {
     target_set = false;
-    send_set_mode("GUIDED");
+    
+    // Set drone to LOITER mode for safe hovering
+    send_set_mode_command("LOITER");
+    LogProxy::log("Setting drone to LOITER mode for safe hovering");
+}
+
+void GoToMission::onStart() {
+    // Mission-specific start logic
+    LogProxy::log("GoToMission: onStart - preparing go to mission");
+}
+
+void GoToMission::onStop() {
+    // Mission-specific stop logic
+    LogProxy::log("GoToMission: onStop - go to mission stopped");
+}
+
+void GoToMission::onRTL() {
+    // Mission-specific RTL logic
+    // Set drone to RTL mode for return to launch
+    send_set_mode_command("RTL");
+    LogProxy::log("GoToMission: Setting drone to RTL mode for return to launch");
 } 

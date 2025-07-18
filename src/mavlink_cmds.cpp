@@ -1,14 +1,14 @@
 #include "mavlink_cmds.h"
 #include "conf.h"
 #include "log_proxy.h"  // For logging
-#include "proxy.h"
+#include "radio.h"
 #include "flight_modes.h"
 
 /**
- * Helper function to send MAVLink message through proxy
+ * Helper function to send MAVLink message through radio
  */
 static void sendMavlinkMessage(const mavlink_message_t* msg) {
-    proxy.writeMessage(msg);
+    radio.writeMessage(msg);
 }
 
 
@@ -37,7 +37,7 @@ void send_set_mode(const char *mode_name) {
     custom_mode // custom mode number
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
 }
 
@@ -72,7 +72,7 @@ void send_set_mode_command(const char *mode_name) {
     0                            // param7: unused
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
   
   LogProxy::log("Sent mode change command: " + String(mode_name));
@@ -125,7 +125,7 @@ void sendFollowTargetLatLon(uint64_t timestamp, double lat, double lon, float al
       custom_state      // custom state (unused)
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
 }
 
@@ -160,7 +160,7 @@ void sendMissionItem(uint16_t seq, MAV_FRAME frame, uint16_t command, uint8_t au
     0         // mission_type (0 for mission item)
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
 }
 
@@ -182,7 +182,7 @@ void sendMissionCount(uint16_t count) {
     0      // opaque_id (0 for upload to vehicle)
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
 }
 
@@ -203,7 +203,7 @@ void sendMissionRequest(uint16_t seq) {
     0     // mission_type (0 for mission)
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
 }
 
@@ -225,7 +225,7 @@ void sendMissionAck(uint8_t type) {
     0     // opaque_id (0 for upload to vehicle)
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
 }
 
@@ -429,7 +429,7 @@ void request_radio_status(int32_t interval_ms) {
     0     // param7: unused
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
   
   LogProxy::log("Requested radio status messages with interval: " + String(interval_ms) + "ms");
@@ -463,7 +463,7 @@ void request_status_text(int32_t interval_ms) {
     0     // param7: unused
   );
 
-  // Send message through proxy
+  // Send message through radio
   sendMavlinkMessage(&msg);
   
   LogProxy::log("Requested status text messages with interval: " + String(interval_ms) + "ms");

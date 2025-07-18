@@ -1,20 +1,20 @@
-#include "proxy.h"
+#include "radio.h"
 #include "conf.h"
 
-// Global proxy instance
-MavlinkProxy proxy(mavSerial);
+// Global radio instance
+MavlinkRadio radio(Serial); // mavSerial
 
 /**
  * Constructor
  */
-MavlinkProxy::MavlinkProxy(HardwareSerial& radioSerial) : radio(radioSerial) {
+MavlinkRadio::MavlinkRadio(HardwareSerial& radioSerial) : radio(radioSerial) {
     // Constructor - radio reference is initialized in the initialization list
 }
 
 /**
  * Read a MAVLink message from the radio
  */
-bool MavlinkProxy::readMessage(mavlink_message_t* msg) {
+bool MavlinkRadio::readMessage(mavlink_message_t* msg) {
     if (!msg) {
         return false;
     }
@@ -43,7 +43,7 @@ bool MavlinkProxy::readMessage(mavlink_message_t* msg) {
 /**
  * Write a MAVLink message to the radio
  */
-bool MavlinkProxy::writeMessage(const mavlink_message_t* msg) {
+bool MavlinkRadio::writeMessage(const mavlink_message_t* msg) {
     if (!msg) {
         return false;
     }
@@ -66,7 +66,7 @@ bool MavlinkProxy::writeMessage(const mavlink_message_t* msg) {
 /**
  * Write raw data to the radio
  */
-bool MavlinkProxy::writeRaw(const uint8_t* data, size_t len) {
+bool MavlinkRadio::writeRaw(const uint8_t* data, size_t len) {
     if (!data || len == 0) {
         return false;
     }
@@ -79,13 +79,13 @@ bool MavlinkProxy::writeRaw(const uint8_t* data, size_t len) {
 /**
  * Check if data is available to read from the radio
  */
-bool MavlinkProxy::available() {
+bool MavlinkRadio::available() {
     return radio.available() > 0;
 }
 
 /**
  * Flush the radio buffer
  */
-void MavlinkProxy::flush() {
+void MavlinkRadio::flush() {
     radio.flush();
 } 

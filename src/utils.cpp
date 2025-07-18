@@ -7,7 +7,7 @@
 #include <algorithm>  // For std::remove_if
 #include <set>        // For std::set
 #include <cstring>    // For strcmp
-#include "mission/mission_loiter.h"  // For LoiterMission
+
 #include "menu/flight_modes.h"  // For flight mode functions
 
 // Mission pointer

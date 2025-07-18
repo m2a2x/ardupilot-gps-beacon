@@ -17,7 +17,7 @@
 #include "gps.h"     // GPS functionality
 #include "tasks.h"   // FreeRTOS tasks
 #include "utils.h"   // Utility functions
-#include "proxy.h"   // MAVLink proxy
+#include "radio.h"   // MAVLink radio
 #include "udp_module.h"   // UDP module
 #include "log_proxy.h"   // Log proxy
 

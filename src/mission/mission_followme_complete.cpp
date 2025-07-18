@@ -6,6 +6,7 @@
 #include "log_proxy.h"  // For logging
 #include "utils.h"
 #include "flight_validator.h"
+#include "../menu/menu_types.h"  // For MenuOption enum
 
 void FollowMeCompleteMission::start() {
     LogProxy::log("AutoMission: Starting auto mission");
@@ -178,8 +179,12 @@ void FollowMeCompleteMission::update() {
 void FollowMeCompleteMission::stop() {
     LogProxy::log("AutoMission: Stopping mission");
     
+    // Set drone to LOITER mode for safe hovering
+    send_set_mode_command("LOITER");
+    LogProxy::log("Setting drone to LOITER mode for safe hovering");
+    
     currentState = COMPLETE;
-    LogProxy::log("Mission stopped and drone disarmed");
+    LogProxy::log("Mission stopped and drone set to LOITER mode");
 }
 
 
@@ -288,4 +293,60 @@ const char* FollowMeCompleteMission::getCurrentStateName() const {
     }
     
     return baseState;
+}
+
+// Menu control methods implementation
+std::vector<MenuOption> FollowMeCompleteMission::getMenuOptions() const {
+    return {START_MODE, STOP_MODE, RTL_MODE, BACK_TO_MODE};
+}
+
+void FollowMeCompleteMission::handleMenuAction(MenuOption option) {
+    switch (option) {
+        case START_MODE:
+            if (currentState == COMPLETE) {
+                start(); // Restart the mission
+            }
+            break;
+            
+        case STOP_MODE:
+            if (currentState != COMPLETE) {
+                stop(); // Stop the mission
+            }
+            break;
+            
+        case RTL_MODE:
+            if (currentState != COMPLETE) {
+                // Set drone to RTL mode for return to launch
+                send_set_mode_command("RTL");
+                LogProxy::log("FollowMeCompleteMission: Setting drone to RTL mode for return to launch");
+                currentState = COMPLETE; // Complete the mission
+            }
+            break;
+            
+        case BACK_TO_MODE:
+            // This will be handled by the main menu system
+            break;
+            
+        default:
+            break;
+    }
+}
+
+void FollowMeCompleteMission::getMenuDisplay(std::vector<String>& lines, MenuOption selectedOption) const {
+    lines.push_back("== " + String(getName()) + " ==");
+    
+    if (currentState != COMPLETE) {
+        lines.push_back("Updates: " + String(getUpdateCount()));
+        lines.push_back("State: " + String(getCurrentStateName()));
+    }
+    
+    lines.push_back("");
+    lines.push_back((selectedOption == START_MODE ? "> " : "  ") + String("Start"));
+    lines.push_back((selectedOption == STOP_MODE ? "> " : "  ") + String("Stop"));
+    lines.push_back((selectedOption == RTL_MODE ? "> " : "  ") + String("RTL"));
+    lines.push_back((selectedOption == BACK_TO_MODE ? "> " : "  ") + String("Back"));
+}
+
+bool FollowMeCompleteMission::isMenuActive() const {
+    return currentState != COMPLETE;
 } 

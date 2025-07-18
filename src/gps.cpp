@@ -9,7 +9,7 @@ unsigned long lastGPSUpdate = 0;
 static const double MIN_ALTITUDE = 3.0;  // Minimum altitude in meters
 
 // Simulation control
-static bool isSimulate = false;
+static bool isSimulate = true;
 
 bool setupGPS() {
   if (isSimulate) {

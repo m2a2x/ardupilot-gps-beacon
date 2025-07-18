@@ -9,7 +9,7 @@
 #include "battery.h"  // For battery functions
 #include "utils.h"    // For mission helpers
 #include "udp_module.h"  // For UDP module
-#include "proxy.h"
+#include "radio.h"
 #include "menu/flight_modes.h"  // For flight mode functions
 #include "log_proxy.h"  // For logging
 
@@ -104,20 +104,20 @@ void mavlinkTask(void *pvParameters) {
             int bytesReceived = udpModule.receivePacket(packetData, sizeof(packetData), &senderIP);
             
             if (bytesReceived > 0) {
-                // Send raw UDP data directly to radio via proxy
-                if (proxy.writeRaw(packetData, bytesReceived)) {
+                    // Send raw UDP data directly to radio via radio
+    if (radio.writeRaw(packetData, bytesReceived)) {
                     lastRxTime = millis(); // Track receive activity
                 }
             }
         }
         
-        // Handle incoming data from proxy
+        // Handle incoming data from radio
         mavlink_message_t incoming_msg;
         uint8_t buf[MAVLINK_MAX_PACKET_LEN];
         int len = 0;
         
-        while (proxy.available()) {
-            if (proxy.readMessage(&incoming_msg)) {
+        while (radio.available()) {
+            if (radio.readMessage(&incoming_msg)) {
                 
                 // Handle radio status message
                 if (incoming_msg.msgid == MAVLINK_MSG_ID_RADIO_STATUS) {

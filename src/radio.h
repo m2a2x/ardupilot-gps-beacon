@@ -3,9 +3,9 @@
 #include <mavlink/v2.0/common/mavlink.h>
 
 /**
- * Simple Proxy for MAVLink Communication
+ * Simple Radio for MAVLink Communication
  * 
- * This proxy acts as an intermediary between the application and the radio (mavSerial).
+ * This radio acts as an intermediary between the application and the radio (mavSerial).
  * It provides a clean interface for reading and writing MAVLink messages,
  * making it easy to add future improvements like logging, filtering, or protocol conversion.
  * 
@@ -13,7 +13,7 @@
  * 
  * // Reading messages from radio
  * mavlink_message_t msg;
- * if (proxy.readMessage(&msg)) {
+ * if (radio.readMessage(&msg)) {
  *     // Process the received message
  *     if (msg.msgid == MAVLINK_MSG_ID_HEARTBEAT) {
  *         // Handle heartbeat
@@ -23,14 +23,14 @@
  * // Writing messages to radio
  * mavlink_message_t msg;
  * mavlink_msg_heartbeat_pack(system_id, component_id, &msg, ...);
- * proxy.writeMessage(&msg);
+ * radio.writeMessage(&msg);
  * 
  * // Check if data is available
- * if (proxy.available()) {
+ * if (radio.available()) {
  *     // Data ready to read
  * }
  */
-class MavlinkProxy {
+class MavlinkRadio {
 private:
     HardwareSerial& radio;  // Reference to the radio serial connection
     
@@ -39,7 +39,7 @@ public:
      * Constructor
      * @param radioSerial Reference to the HardwareSerial instance for radio communication
      */
-    MavlinkProxy(HardwareSerial& radioSerial);
+    MavlinkRadio(HardwareSerial& radioSerial);
     
     /**
      * Read a MAVLink message from the radio
@@ -75,5 +75,5 @@ public:
     void flush();
 };
 
-// Global proxy instance
-extern MavlinkProxy proxy; 
+// Global radio instance
+extern MavlinkRadio radio; 
