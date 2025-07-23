@@ -69,6 +69,15 @@ void sendGPSCoordinates(double lat, double lon, float alt, float relative_alt);
 void send_position_target(float lat, float lon, float alt);
 
 /**
+ * Send attitude target to the drone (yaw control only)
+ * This function sends a MAVLink SET_ATTITUDE_TARGET message
+ * containing only yaw control (no position or other attitude)
+ * 
+ * @param yaw_rad Yaw angle in radians
+ */
+void send_attitude_target_yaw(float yaw_rad);
+
+/**
  * Send a FOLLOW_TARGET message to the drone (Lat/Lon only)
  * Simplified version for when only 2D position data is available
  * This function sends a MAVLink FOLLOW_TARGET message to the autopilot
@@ -147,20 +156,7 @@ void send_arm_command(bool arm, bool force = false);
  */
 void send_takeoff_command(float altitude);
 
-/**
- * Calculate offset coordinates for following behind a target
- * This function calculates GPS coordinates that are offset by a specified distance
- * behind the target position, useful for following missions
- * 
- * @param target_lat Target latitude in degrees
- * @param target_lon Target longitude in degrees
- * @param offset_distance Distance to offset in meters (positive = behind, negative = in front)
- * @param offset_lat Output: offset latitude in degrees
- * @param offset_lon Output: offset longitude in degrees
- */
-void calculate_offset_position(double target_lat, double target_lon, 
-                              double offset_distance, 
-                              double &offset_lat, double &offset_lon);
+
 
 /**
  * Request radio status messages from the autopilot

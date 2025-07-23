@@ -1,6 +1,5 @@
 #include "flight_modes.h"
 #include "mission/mission_guided.h"
-#include "mission/mission_followme.h"
 #include "mission/mission_followme_complete.h"
 #include "mission/mission_goto.h"
 #include "mavlink_cmds.h"  // For send_set_mode
@@ -12,7 +11,6 @@ extern Mission* currentMission;  // From utils.cpp
 
 // Mission factory functions
 static Mission* createGuidedMission() { return new GuidedMission(); }
-static Mission* createFollowMeMission() { return new FollowMeMission(); }
 static Mission* createFollowMeCompleteMission() { return new FollowMeCompleteMission(); }
 static Mission* createGoToMission() { return new GoToMission(); }
 
@@ -25,14 +23,6 @@ static const FlightModeConfig FLIGHT_MODE_CONFIGS[] = {
     GUIDED_MODE_CONTROL,
     GUIDED_MODE,
     createGuidedMission
-  },
-  {
-    FLIGHT_MODE_FOLLOW_ME,
-    "Follow Me",
-    "Follow Me",
-    FOLLOW_ME_CONTROL,
-    FOLLOW_ME,
-    createFollowMeMission
   },
   {
     FLIGHT_MODE_AUTO,
@@ -134,8 +124,7 @@ bool executeFlightMode(FlightMode mode) {
   
   if (config->createMission) {
     currentMission = config->createMission();
-    currentMission->start();
-    LogProxy::log(String(config->displayName) + " started");
+    LogProxy::log(String(config->displayName) + " created - press Start to begin");
     return true;
   }
   

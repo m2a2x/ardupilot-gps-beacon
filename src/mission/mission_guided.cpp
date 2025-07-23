@@ -16,7 +16,7 @@ void GuidedMission::update() {
         
         // Check if it's time to send position target and GPS has valid fix
         if (millis() - lastPositionSend >= POSITION_SEND_INTERVAL && gpsHasFix()) {
-            if (executeFollowMeLogic(3.0, true, "Guided")) {
+            if (executeFollowMeLogic(3.0, 0.0, true, "Guided")) {
                 updateCount++;  // Increment counter for successful update
                 lastPositionSend = millis();
             }

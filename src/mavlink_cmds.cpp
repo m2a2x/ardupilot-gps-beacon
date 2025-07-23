@@ -3,6 +3,8 @@
 #include "log_proxy.h"  // For logging
 #include "radio.h"
 #include "flight_modes.h"
+#include "gps.h"  // For GPS functions
+#include <math.h>  // For cos, sin functions
 
 /**
  * Helper function to send MAVLink message through radio
@@ -360,11 +362,11 @@ void send_position_target(float lat, float lon, float alt)
       0,                                 // time_boot_ms (not used)
       MAVLINK_TARGET_SYSTEM_ID,                                 // target_system
       MAVLINK_TARGET_COMPONENT_ID,                                 // target_component
-      MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, // frame
+      MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, // frame - terrain relative altitude
       0b0000111111111000,                // type_mask (only positions)
       (int32_t)(lat * 1e7),              // lat_int
       (int32_t)(lon * 1e7),              // lon_int
-      alt,
+      alt,                               // altitude above ground level (AGL)
       0, 0, 0,                           // vx, vy, vz (not used)
       0, 0, 0,                           // afx, afy, afz (not used)
       0, 0                               // yaw, yaw_rate (not used)
@@ -374,32 +376,44 @@ void send_position_target(float lat, float lon, float alt)
 }
 
 /**
- * Calculate offset coordinates for following behind a target
- * This function calculates GPS coordinates that are offset by a specified distance
- * behind the target position, useful for following missions
+ * Send attitude target to the drone (yaw control only)
+ * This function sends a MAVLink SET_ATTITUDE_TARGET message
+ * containing only yaw control (no position or other attitude)
  * 
- * @param target_lat Target latitude in degrees
- * @param target_lon Target longitude in degrees
- * @param offset_distance Distance to offset in meters (positive = behind, negative = in front)
- * @param offset_lat Output: offset latitude in degrees
- * @param offset_lon Output: offset longitude in degrees
+ * @param yaw_rad Yaw angle in radians
  */
-void calculate_offset_position(double target_lat, double target_lon, 
-                              double offset_distance, 
-                              double &offset_lat, double &offset_lon) {
-  // Convert distance to degrees (approximate)
-  // 1 degree of latitude ≈ 111,320 meters
-  // 1 degree of longitude ≈ 111,320 * cos(latitude) meters
+void send_attitude_target_yaw(float yaw_rad)
+{
+  // For now, we'll use a simpler approach - send a position target with yaw
+  // This is a workaround until we can fix the attitude target function
+  double current_lat = getLatitude();
+  double current_lon = getLongitude();
+  float current_alt = getAltitude();
   
-  double lat_offset_deg = offset_distance / 111320.0; // Convert meters to degrees
+  // Send position target with yaw control
+  mavlink_message_t msg;
   
-  // Calculate longitude offset (depends on latitude)
-  double lon_offset_deg = offset_distance / (111320.0 * cos(target_lat * M_PI / 180.0));
-  
-  // Calculate offset coordinates
-  offset_lat = target_lat - lat_offset_deg; // Behind = subtract latitude
-  offset_lon = target_lon - lon_offset_deg; // Behind = subtract longitude
+  mavlink_msg_set_position_target_global_int_pack(
+      MAVLINK_SYSTEM_ID,   // system_id
+      MAVLINK_COMPONENT_ID, // component_id
+      &msg,
+      0,                                 // time_boot_ms (not used)
+      MAVLINK_TARGET_SYSTEM_ID,          // target_system
+      MAVLINK_TARGET_COMPONENT_ID,       // target_component
+      MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, // frame - terrain relative altitude
+      0b0000111111110111,                // type_mask (position + yaw)
+      (int32_t)(current_lat * 1e7),      // lat_int
+      (int32_t)(current_lon * 1e7),      // lon_int
+      current_alt,                       // alt (AGL)
+      0, 0, 0,                          // vx, vy, vz (not used)
+      0, 0, 0,                          // afx, afy, afz (not used)
+      yaw_rad, 0                         // yaw, yaw_rate
+  );
+
+  sendMavlinkMessage(&msg);
 }
+
+
 
 /**
  * Request radio status messages from the autopilot

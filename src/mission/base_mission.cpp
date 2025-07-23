@@ -28,11 +28,9 @@ void BaseMission::handleMenuAction(MenuOption option) {
             break;
             
         case RTL_MODE:
-            if (isRunning) {
-                onRTL();
-                isRunning = false;
-                LogProxy::log(String(getName()) + " RTL initiated successfully");
-            }
+            onRTL();
+            isRunning = false;
+            LogProxy::log(String(getName()) + " RTL initiated successfully");
             break;
             
         case BACK_TO_MODE:

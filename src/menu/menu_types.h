@@ -13,7 +13,6 @@ enum MenuScreen {
   GPS_MENU,       ///< GPS control sub-menu
   MISSION_STATUS, ///< Mission status screen
   GUIDED_MODE_CONTROL, ///< Guided mode control screen (start/stop/back)
-  FOLLOW_ME_CONTROL,   ///< Follow me mode control screen (start/stop/back)
   AUTO_CONTROL, ///< Auto mode control screen (start/stop/back)
   GO_TO_CONTROL,       ///< Go to mode control screen (start/stop/back)
 
@@ -33,7 +32,6 @@ enum MenuOption {
   
   // Flight modes sub-menu options
   GUIDED_MODE,    ///< Enter guided mode control
-  FOLLOW_ME,      ///< Enter follow me mode control
   AUTO, ///< Enter auto mode control
   GO_TO,          ///< Enter go to mode control
   BACK,           ///< Go back to previous menu

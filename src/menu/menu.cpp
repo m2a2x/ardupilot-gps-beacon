@@ -7,7 +7,6 @@
 #include "mission/mission.h"  // For mission management
 
 #include "mission/mission_guided.h"
-#include "mission/mission_followme.h"
 #include "mission/mission_followme_complete.h"
 #include "mission/mission_goto.h"
 
@@ -36,7 +35,6 @@ const MenuOption MAIN_MENU_OPTIONS[] = {
 
 const MenuOption FLIGHT_MODES_OPTIONS[] = {
   GUIDED_MODE,
-  FOLLOW_ME,
   AUTO,
   GO_TO,
   BACK
@@ -73,7 +71,7 @@ static MenuState menuState = {
 // Navigation history for back button functionality
 static std::vector<MenuScreen> screenHistory;
 
-// Follow me status
+// Follow me status (legacy - kept for compatibility)
 uint32_t followMeUpdates = 0;
 bool followMeEnabled = false;
 static bool followMeActive = false;  // Tracks if FollowMe mode is active
@@ -129,7 +127,6 @@ const MenuOption* getMenuOptions(MenuScreen screen) {
     case GPS_MENU:
       return GPS_MENU_OPTIONS;
     case GUIDED_MODE_CONTROL:
-    case FOLLOW_ME_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
       // These screens now delegate to the mission menu manager
@@ -161,7 +158,6 @@ int getMenuOptionCount(MenuScreen screen) {
     case GPS_MENU:
       return sizeof(GPS_MENU_OPTIONS) / sizeof(GPS_MENU_OPTIONS[0]);
     case GUIDED_MODE_CONTROL:
-    case FOLLOW_ME_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
       // These screens now delegate to the mission menu manager
@@ -184,7 +180,6 @@ int getMenuOptionCount(MenuScreen screen) {
 MenuOption getNextMenuOption(MenuScreen screen, MenuOption currentOption) {
   // Handle mission-specific screens
   if (screen == GUIDED_MODE_CONTROL ||
-      screen == FOLLOW_ME_CONTROL ||
       screen == AUTO_CONTROL ||
       screen == GO_TO_CONTROL) {
     if (currentMission) {
@@ -222,7 +217,6 @@ MenuOption getNextMenuOption(MenuScreen screen, MenuOption currentOption) {
 MenuOption getPreviousMenuOption(MenuScreen screen, MenuOption currentOption) {
   // Handle mission-specific screens
   if (screen == GUIDED_MODE_CONTROL ||
-      screen == FOLLOW_ME_CONTROL ||
       screen == AUTO_CONTROL ||
       screen == GO_TO_CONTROL) {
     if (currentMission) {
@@ -290,7 +284,6 @@ void navigateToScreen(MenuScreen screen) {
   
   // Set appropriate initial option based on screen
   if (screen == GUIDED_MODE_CONTROL ||
-      screen == FOLLOW_ME_CONTROL ||
       screen == AUTO_CONTROL ||
       screen == GO_TO_CONTROL) {
     // Mission-specific screens - always create the appropriate mission for the screen
@@ -472,7 +465,6 @@ void selectMenuOption() {
       break;
 
     case GUIDED_MODE_CONTROL:
-    case FOLLOW_ME_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
       // Mission-specific screens now delegate to the mission menu manager
@@ -532,7 +524,7 @@ void getMenuDisplay(std::vector<String> &lines) {
           lines.push_back("Status: FIX");
           lines.push_back("Alt: " + String(getAltitude(), 1) + "m");
           lines.push_back("Sats: " + String(getSatelliteCount()));
-          lines.push_back("Follow Me: " + String(followMeUpdates));
+          lines.push_back("Updates: " + String(followMeUpdates));
         } else {
           lines.push_back("Status: -");
           lines.push_back("Sats: " + String(getSatelliteCount()));
@@ -569,7 +561,7 @@ void getMenuDisplay(std::vector<String> &lines) {
           lines.push_back("Lon: " + String(getLongitude(), 6));
           lines.push_back("Alt: " + String(getAltitude(), 1) + "m");
           lines.push_back("Sats: " + String(getSatelliteCount()));
-          lines.push_back("Follow Me: " + String(followMeUpdates));
+          lines.push_back("Updates: " + String(followMeUpdates));
         } else {
           lines.push_back("Status: -");
           lines.push_back("Sats: " + String(getSatelliteCount()));
@@ -587,7 +579,6 @@ void getMenuDisplay(std::vector<String> &lines) {
     }
 
     case GUIDED_MODE_CONTROL:
-    case FOLLOW_ME_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
       // Mission-specific screens now delegate to the mission menu manager
@@ -625,7 +616,6 @@ void getMenuDisplayWithHighlight(std::vector<String> &lines, std::vector<int> &h
   
   // Add highlight information for flight mode control screens
   if (menuState.currentScreen == GUIDED_MODE_CONTROL ||
-      menuState.currentScreen == FOLLOW_ME_CONTROL ||
       menuState.currentScreen == AUTO_CONTROL ||
       menuState.currentScreen == GO_TO_CONTROL) {
     // Highlight the status line if the mode is active

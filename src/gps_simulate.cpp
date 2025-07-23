@@ -8,8 +8,8 @@ static double simAltitude = 0.0;         // Starting altitude
 static double simHeading = 0.0;          // Current heading in degrees
 static unsigned long lastSimUpdate = 0;  // Last simulation update time
 static const unsigned long SIM_UPDATE_INTERVAL = 1000; // Update every 1 second
-static const double WALKING_SPEED = 0.00001; // Small movement per update (roughly 1-2 meters)
-static const double MIN_ALTITUDE = 3.0;  // Minimum altitude in meters
+static const double WALKING_SPEED = 0.00005; // Small movement per update (roughly 1-2 meters)
+static const double MIN_ALTITUDE = 5.0;  // Minimum altitude in meters
 
 bool setupGPSSimulation() {
   resetSimulation();

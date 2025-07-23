@@ -1,6 +1,7 @@
 #pragma once
 #include "mission.h"
 #include "flight_validator.h"
+#include "../gps_utils.h"  // For GPS calculation functions
 
 class FollowMeCompleteMission : public Mission {
 private:
@@ -17,9 +18,13 @@ private:
     unsigned long stateStartTime;
     unsigned long lastPositionSend;
     const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
-    const float TAKEOFF_ALTITUDE = 3.0f; // 3 meters
-    const double FOLLOW_OFFSET = 3.0; // 3 meters behind
-    
+    const float TAKEOFF_ALTITUDE = 7.0f; // 7 meters
+    const double FOLLOW_OFFSET = 7.0; // 7 meters behind
+    const int LOG_TIME = 2000; // 2 seconds
+    const int RETRY_TIME = 5000; // 5 seconds
+    const int MAX_TAKEOFF_TIME = 60000; // 60 seconds
+    const int DELAY_BEFORE_FOLLOW_MODE = 20000; // 20 seconds
+
     // Verification flags
     bool armCommandSent;
     bool modeCommandSent;
@@ -38,9 +43,22 @@ private:
     // Beacon GPS status tracking (mission critical)
     bool beaconGpsValid;
     
+    // Position tracking for improved follow logic
+    double lastBeaconLat;
+    double lastBeaconLon;
+    bool hasLastBeaconPosition;
+    const float POSITION_CHANGE_THRESHOLD = 2.0f; // 2 meters threshold
+    unsigned long lastYawSend;
+    const unsigned long YAW_SEND_INTERVAL = 500; // 500ms interval for yaw updates
+    
+    // Yaw control for smooth video recording
+    float lastYawRad;
+    bool hasLastYaw;
+    const float YAW_CHANGE_THRESHOLD = 0.174533f; // 10 degrees in radians (10 * PI / 180)
+    
 public:
     FollowMeCompleteMission() : 
-        currentState(SET_GUIDED_MODE), 
+        currentState(COMPLETE), 
         stateStartTime(0), 
         lastPositionSend(0),
         armCommandSent(false),
@@ -52,7 +70,13 @@ public:
         currentError(FlightValidator::NO_ERROR),
         errorStartTime(0),
         droneGpsFixType(GPS_FIX_TYPE_NO_GPS),
-        beaconGpsValid(false) {}
+        beaconGpsValid(false),
+        lastBeaconLat(0.0),
+        lastBeaconLon(0.0),
+        hasLastBeaconPosition(false),
+        lastYawSend(0),
+        lastYawRad(0.0f),
+        hasLastYaw(false) {}
     
     void start() override;
     void update() override;
@@ -82,4 +106,8 @@ public:
     void handleMenuAction(MenuOption option) override;
     void getMenuDisplay(std::vector<String>& lines, MenuOption selectedOption) const override;
     bool isMenuActive() const override;
+    
+private:
+    // Helper method for smooth yaw control
+    void updateYawWithThreshold(double beaconLat, double beaconLon);
 }; 

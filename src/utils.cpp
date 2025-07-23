@@ -1,12 +1,15 @@
 #include "utils.h"
 #include "conf.h"
 #include "gps.h"
+#include "gps_utils.h"  // For GPS calculation functions
 #include "mission/mission_followme_complete.h"
 #include "mavlink_cmds.h"
+#include "log_proxy.h"  // For logging
 #include <mavlink/v2.0/common/mavlink.h>
 #include <algorithm>  // For std::remove_if
 #include <set>        // For std::set
 #include <cstring>    // For strcmp
+#include <math.h>     // For cos, sin functions
 
 #include "menu/flight_modes.h"  // For flight mode functions
 
@@ -29,22 +32,16 @@ Mission* currentMission = nullptr;
 void calculateVelocity(double lat1, double lon1, float alt1,
                       double lat2, double lon2, float alt2,
                       float dt, float &vx, float &vy, float &vz) {
-  // Convert to meters (approximate)
-  const double EARTH_RADIUS = 6371000.0;  // Earth radius in meters
-  double lat1_rad = lat1 * M_PI / 180.0;
-  double lon1_rad = lon1 * M_PI / 180.0;
-  double lat2_rad = lat2 * M_PI / 180.0;
-  double lon2_rad = lon2 * M_PI / 180.0;
-
-  // Calculate distances
-  double dx = EARTH_RADIUS * cos(lat1_rad) * (lon2_rad - lon1_rad);
-  double dy = EARTH_RADIUS * (lat2_rad - lat1_rad);
-  double dz = alt2 - alt1;
-
-  // Calculate velocities
-  vx = dx / dt;
-  vy = dy / dt;
-  vz = dz / dt;
+  // Calculate horizontal distance using GPS utility function
+  float distance = calculateGPSDistance(lat1, lon1, lat2, lon2);
+  
+  // Calculate bearing to get direction
+  float bearing = calculateGPSBearing(lat1, lon1, lat2, lon2);
+  
+  // Calculate velocity components
+  vx = distance * cos(bearing) / dt;
+  vy = distance * sin(bearing) / dt;
+  vz = (alt2 - alt1) / dt;
 }
 
 /**
@@ -107,7 +104,7 @@ void handleMissionCommandAck(uint16_t command, uint8_t result) {
  * @param log_prefix Optional prefix for logging messages
  * @return true if position was sent successfully, false otherwise
  */
-bool executeFollowMeLogic(float offset_meters, bool gps_valid, const String& log_prefix) {
+bool executeFollowMeLogic(float offset_meters, float altitude_offset_meters, bool gps_valid, const String& log_prefix) {
     if (!gps_valid) {
         return false;
     }
@@ -116,20 +113,21 @@ bool executeFollowMeLogic(float offset_meters, bool gps_valid, const String& log
     double target_lon = getLongitude();
     float target_alt = getAltitude();
     
-    // Convert offset from meters to degrees (approximate)
-    // 1 degree ≈ 111,000 meters at the equator
-    const double OFFSET_DEGREES = offset_meters / 111000.0;
-    double offset_lat = target_lat - OFFSET_DEGREES;  // Move south (behind)
-    double offset_lon = target_lon;  // Same longitude
+    // Calculate offset position using GPS utility function
+    double offset_lat, offset_lon;
+    calculateOffsetPosition(target_lat, target_lon, offset_meters, offset_lat, offset_lon);
     
-    // Send position target with offset coordinates
-    send_position_target(offset_lat, offset_lon, target_alt);
+    // Apply altitude offset
+    float final_alt = target_alt + altitude_offset_meters;
+    
+    // Send position target with offset coordinates and altitude
+    send_position_target(offset_lat, offset_lon, final_alt);
     
     // Log the action if prefix is provided
     if (log_prefix.length() > 0) {
         String logMsg = log_prefix + " Following... Target: " + String(offset_lat, 6) + "," + String(offset_lon, 6) + 
-                       " (" + String(offset_meters, 1) + "m behind)";
-        Serial.println(logMsg);
+                       " (" + String(offset_meters, 1) + "m behind, " + String(altitude_offset_meters, 1) + "m alt offset)";
+        LogProxy::log(logMsg);
     }
     
     return true;

@@ -6,10 +6,10 @@
 HardwareSerial gpsSerial(2);
 TinyGPSPlus gps;
 unsigned long lastGPSUpdate = 0;
-static const double MIN_ALTITUDE = 3.0;  // Minimum altitude in meters
+static const double MIN_ALTITUDE = 2.0;  // Minimum altitude in meters
 
 // Simulation control
-static bool isSimulate = true;
+static bool isSimulate = false;
 
 bool setupGPS() {
   if (isSimulate) {
