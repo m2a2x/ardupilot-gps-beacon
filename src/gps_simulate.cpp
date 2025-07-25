@@ -1,5 +1,6 @@
 #include "gps_simulate.h"
 #include <Arduino.h>
+#include "mavlink_cmds.h"
 
 // Simulation variables
 static double simLatitude = 41.697391;   // Starting latitude
@@ -8,7 +9,7 @@ static double simAltitude = 0.0;         // Starting altitude
 static double simHeading = 0.0;          // Current heading in degrees
 static unsigned long lastSimUpdate = 0;  // Last simulation update time
 static const unsigned long SIM_UPDATE_INTERVAL = 1000; // Update every 1 second
-static const double WALKING_SPEED = 0.00005; // Small movement per update (roughly 1-2 meters)
+static const double WALKING_SPEED = 0.000015; // Movement per update (roughly 1-2 meters per second)
 static const double MIN_ALTITUDE = 5.0;  // Minimum altitude in meters
 
 bool setupGPSSimulation() {
@@ -33,7 +34,6 @@ bool updateGPSSimulation() {
     // Small altitude variation
     simAltitude += (random(-10, 10) / 100.0); // ±0.1m variation
     if (simAltitude < 0) simAltitude = 0;
-    
     lastSimUpdate = currentTime;
     return true;
   }

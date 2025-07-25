@@ -99,6 +99,15 @@ FlightValidator::ValidationError FlightValidator::checkSystemStatus(uint32_t onb
     return NO_ERROR;
 }
 
+FlightValidator::ValidationError FlightValidator::checkRadioConnectivity(unsigned long last_heartbeat_time, unsigned long heartbeat_timeout_ms) {
+    // Check if we've received a heartbeat recently
+    if (millis() - last_heartbeat_time > heartbeat_timeout_ms) {
+        return RADIO_SIGNAL_LOST;
+    }
+    
+    return NO_ERROR;
+}
+
 const char* FlightValidator::getErrorDescription(ValidationError error) {
     switch (error) {
         case NO_ERROR:
@@ -121,6 +130,8 @@ const char* FlightValidator::getErrorDescription(ValidationError error) {
             return "Battery low or unhealthy";
         case RC_SIGNAL_LOST:
             return "RC signal lost";
+        case RADIO_SIGNAL_LOST:
+            return "SiK radio signal lost";
         case SENSOR_FAILURE:
             return "Critical sensor failure";
         case UNKNOWN_ERROR:
@@ -144,6 +155,7 @@ uint8_t FlightValidator::getErrorSeverity(ValidationError error) {
         case POSITION_ESTIMATE_POOR:
         case BATTERY_LOW:
         case RC_SIGNAL_LOST:
+        case RADIO_SIGNAL_LOST:
         case SENSOR_FAILURE:
         case UNKNOWN_ERROR:
             return 2; // critical

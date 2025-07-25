@@ -36,7 +36,6 @@ bool StatusDisplay::update(const std::vector<String>& lines) {
   int y = 0;
   for (const String& line : lines) {
     if (y + CHAR_HEIGHT > SCREEN_HEIGHT) {
-      LogProxy::log("Warning: Display overflow, truncating content");
       break;
     }
     display.setCursor(0, y);
@@ -62,7 +61,6 @@ bool StatusDisplay::update(const char* lines[], size_t count) {
   int y = 0;
   for (size_t i = 0; i < count; ++i) {
     if (y + CHAR_HEIGHT > SCREEN_HEIGHT) {
-      LogProxy::log("Warning: Display overflow, truncating content");
       break;
     }
     display.setCursor(0, y);
@@ -87,7 +85,6 @@ bool StatusDisplay::updateWithHighlight(const std::vector<String>& lines, const 
   int y = 0;
   for (size_t i = 0; i < lines.size(); ++i) {
     if (y + CHAR_HEIGHT > SCREEN_HEIGHT) {
-      LogProxy::log("Warning: Display overflow, truncating content");
       break;
     }
     

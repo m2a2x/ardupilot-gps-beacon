@@ -20,6 +20,17 @@ public:
     // Get current state for display (default implementation returns "Unknown")
     virtual const char* getCurrentStateName() const { return "Unknown"; }
     
+    // Command acknowledgment callback - missions can override to handle command acks
+    virtual void onCommandAck(uint16_t command, uint8_t result) {
+        // Default implementation does nothing - missions can override if needed
+    }
+    
+    // Radio connectivity check - missions can override to handle radio issues
+    virtual bool checkRadioConnectivity() {
+        // Default implementation returns true - missions can override if needed
+        return true;
+    }
+    
     // Menu control methods - each mission handles its own menu
     virtual std::vector<MenuOption> getMenuOptions() const = 0;
     virtual void handleMenuAction(MenuOption option) = 0;
@@ -36,6 +47,11 @@ protected:
  */
 class BaseMission : public Mission {
 public:
+    // Implement the pure virtual functions from Mission with default empty implementations
+    void start() override { /* Default empty implementation */ }
+    void update() override { /* Default empty implementation */ }
+    void stop() override { /* Default empty implementation */ }
+    
     // Common menu options for most missions
     std::vector<MenuOption> getMenuOptions() const override;
     
@@ -47,6 +63,12 @@ public:
     
     // Menu is active if mission is running
     bool isMenuActive() const override { return isRunning; }
+    
+    // Override getCurrentStateName to include radio connectivity status
+    const char* getCurrentStateName() const override;
+    
+    // Override checkRadioConnectivity to provide base mission implementation
+    bool checkRadioConnectivity() override;
     
 protected:
     bool isRunning = false;

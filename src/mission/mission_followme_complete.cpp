@@ -1,6 +1,5 @@
 #include "mission_followme_complete.h"
 #include <Arduino.h>
-#include <math.h>  // For M_PI constant
 #include "mavlink_cmds.h"
 #include "gps.h"
 #include "conf.h"
@@ -8,9 +7,13 @@
 #include "utils.h"
 #include "flight_validator.h"
 #include "../menu/menu_types.h"  // For MenuOption enum
+#include "../gps_utils.h"  // For GPS calculation functions
+#include "../drone_status.h"  // For DroneStatus object
+
+// External declarations
+extern DroneStatus droneStatus;
 
 void FollowMeCompleteMission::start() {
-    LogProxy::log("AutoMission: Starting auto mission");
     currentState = SET_GUIDED_MODE;
     stateStartTime = millis();
     lastPositionSend = 0;
@@ -31,22 +34,19 @@ void FollowMeCompleteMission::start() {
     droneGpsFixType = GPS_FIX_TYPE_NO_GPS;
     beaconGpsValid = false;
     
-    // Reset position tracking
-    lastBeaconLat = 0.0;
-    lastBeaconLon = 0.0;
-    hasLastBeaconPosition = false;
-    lastYawSend = 0;
-    
-    // Reset yaw tracking
-    lastYawRad = 0.0f;
-    hasLastYaw = false;
+    // Reset target position
+    targetLat = 0.0;
+    targetLon = 0.0;
+    targetAlt = 0.0f;
+    targetSet = false;
     
     resetUpdateCount();
     
     // Request status text messages to get better feedback
     request_status_text(1000); // Request status text every 1 second
     
-    LogProxy::log("Mission started: Will set GUIDED mode, arm, takeoff to 10m, then follow");
+    // Request altitude data stream to ensure we receive drone altitude updates
+    request_data_stream(MAV_DATA_STREAM_POSITION, 10); // 10Hz position data (includes altitude)
 }
 
 void FollowMeCompleteMission::update() {
@@ -64,29 +64,16 @@ void FollowMeCompleteMission::update() {
         beaconGpsValid = true;
         // Clear beacon GPS errors if resolved
         if (currentError == FlightValidator::GPS_NO_FIX) {
-            LogProxy::log("✓ Beacon GPS error resolved");
+            LogProxy::log("Beacon GPS error resolved");
             currentError = FlightValidator::NO_ERROR;
             errorStartTime = 0;
         }
     }
+
     
     switch (currentState) {
         case SET_GUIDED_MODE: {
-            if (!modeCommandSent) {
-                LogProxy::log("Step 1: Setting GUIDED mode...");
-                send_set_mode_command("GUIDED");
-                modeCommandSent = true;
-                stateStartTime = millis();
-            }
-            // Wait for mode acknowledgment or timeout
-            if (modeAckReceived) {
-                LogProxy::log("✓ GUIDED mode set successfully");
-                currentState = ARM_DRONE;
-                stateStartTime = millis();
-            } else if (millis() - stateStartTime >= RETRY_TIME) { // 5 second timeout
-                LogProxy::log("⚠ Mode command timeout, retrying...");
-                modeCommandSent = false; // Retry
-            }
+            handleSetGuidedMode();
             break;
         }
         case ARM_DRONE: {
@@ -98,11 +85,11 @@ void FollowMeCompleteMission::update() {
             }
             // Wait for arm acknowledgment or timeout
             if (armAckReceived) {
-                LogProxy::log("✓ Arm command acknowledged successfully");
+                LogProxy::log("Arm command acknowledged successfully");
                 currentState = TAKEOFF;
                 stateStartTime = millis();
             } else if (millis() - stateStartTime >= RETRY_TIME) { // 5 second timeout
-                LogProxy::log("⚠ Arm command timeout, retrying...");
+                LogProxy::log("Arm command timeout, retrying...");
                 armCommandSent = false; // Retry
             }
             break;
@@ -126,7 +113,7 @@ void FollowMeCompleteMission::update() {
             }
             // Wait for takeoff acknowledgment or timeout
             if (takeoffAckReceived) {
-                LogProxy::log("✓ Takeoff command acknowledged");
+                LogProxy::log("Takeoff command acknowledged");
                 currentState = WAIT_TAKEOFF_COMPLETE;
                 stateStartTime = millis();
             } else if (millis() - stateStartTime >= RETRY_TIME) { // 5 second timeout
@@ -136,44 +123,28 @@ void FollowMeCompleteMission::update() {
             break;
         }
         case WAIT_TAKEOFF_COMPLETE: {
-            float current_alt = getAltitude();
-            static unsigned long lastAltLog = 0;
             unsigned long timeInState = millis() - stateStartTime;
             
-            // Log altitude every 5 seconds to avoid spam
-            if (millis() - lastAltLog >= 5000) {
-                LogProxy::log("Waiting for takeoff completion... Current altitude: " + String(current_alt, 1) + "m, Target: " + String(TAKEOFF_ALTITUDE * 0.8, 1) + "m, Time: " + String(timeInState / 1000) + "s");
-                lastAltLog = millis();
+            // Use drone altitude from DroneStatus object for takeoff detection
+            float current_alt = 0.0f;
+            bool altitude_available = false;
+            
+            if (droneStatus.isAltitudeValid() && droneStatus.altitude_relative > TAKEOFF_ALTITUDE * 0.8) {
+                current_alt = droneStatus.altitude_relative;  // Use relative altitude (above home)
+                altitude_available = true;
+                LogProxy::log("Altitude available: " + String(current_alt) + "m");
             }
             
-            // Wait at least 20 seconds before proceeding to follow mode
-            if (timeInState >= DELAY_BEFORE_FOLLOW_MODE) { // 20 second minimum wait
-                if (current_alt >= TAKEOFF_ALTITUDE * 0.8) { // 80% of target altitude
-                    LogProxy::log("✓ Takeoff completed! Altitude: " + String(current_alt, 1) + "m after " + String(timeInState / 1000) + "s");
-                } else {
-                    LogProxy::log("⚠ Proceeding to follow mode after minimum 20s wait (altitude: " + String(current_alt, 1) + "m)");
-                }
-                currentState = FOLLOW_MODE;
+            // Simple timeout-based approach
+            if (timeInState >= DELAY_BEFORE_GOTO_MODE || altitude_available) {
+                currentState = IN_FOLLOW_MODE;
                 stateStartTime = millis();
-                LogProxy::log("Step 4: Starting follow-me mode...");
-            } else if (millis() - stateStartTime >= MAX_TAKEOFF_TIME) { // 60 second maximum timeout for takeoff
-                LogProxy::log("⚠ Takeoff timeout - proceeding to follow mode anyway");
-                currentState = FOLLOW_MODE;
-                stateStartTime = millis();
+                setNewTargetWithAltitude(TAKEOFF_ALTITUDE);
             }
             break;
         }
-        case FOLLOW_MODE: {
-            static unsigned long lastPositionSend = 0;
-            const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
-            
-            // Check if it's time to send position target and GPS has valid fix
-            if (millis() - lastPositionSend >= POSITION_SEND_INTERVAL && gpsHasFix()) {
-                if (executeFollowMeLogic(FOLLOW_OFFSET, 0.0, TAKEOFF_ALTITUDE, "FollowMe")) {
-                    updateCount++;  // Increment counter for successful update
-                    lastPositionSend = millis();
-                }
-            }
+        case IN_FOLLOW_MODE: {
+            handleInFollowMode();
             break;
         }
         case COMPLETE: {
@@ -184,20 +155,33 @@ void FollowMeCompleteMission::update() {
 }
 
 void FollowMeCompleteMission::stop() {
-    LogProxy::log("AutoMission: Stopping mission");
-    
     // Set drone to LOITER mode for safe hovering
     send_set_mode_command("LOITER");
-    LogProxy::log("Setting drone to LOITER mode for safe hovering");
-    
     currentState = COMPLETE;
-    LogProxy::log("Mission stopped and drone set to LOITER mode");
 }
 
+void FollowMeCompleteMission::setNewTargetWithAltitude(float altitude) {
+    if (gpsHasFix()) {
+        // Get current beacon position
+        double beaconLat = getLatitude();
+        double beaconLon = getLongitude();
+        
+        // Calculate offset position 3 meters east (π/2 radians = 90 degrees = East)
+        double offsetLat, offsetLon;
+        calculateOffsetPosition(beaconLat, beaconLon, 3.0, M_PI / 2.0, offsetLat, offsetLon);
+        
+        // Set target to offset position with new altitude
+        targetLat = offsetLat;
+        targetLon = offsetLon;
+        targetAlt = altitude;
+        targetSet = true;
+    } else {
+        LogProxy::log("⚠ No GPS fix available, cannot set target");
+        targetSet = false;
+    }
+}
 
 void FollowMeCompleteMission::onCommandAck(uint16_t command, uint8_t result) {
-    LogProxy::log("Command ACK received: command=" + String(command) + ", result=" + String(result));
-    
     // Use validation component to check for errors
     FlightValidator::ValidationError error = FlightValidator::checkCommandAckError(command, result);
     
@@ -208,7 +192,7 @@ void FollowMeCompleteMission::onCommandAck(uint16_t command, uint8_t result) {
     } else {
         // Clear error if command was successful
         if (currentError != FlightValidator::NO_ERROR) {
-            LogProxy::log("✓ Error resolved: " + String(FlightValidator::getErrorDescription(currentError)));
+            LogProxy::log("Error resolved: " + String(FlightValidator::getErrorDescription(currentError)));
             currentError = FlightValidator::NO_ERROR;
             errorStartTime = 0;
         }
@@ -218,49 +202,20 @@ void FollowMeCompleteMission::onCommandAck(uint16_t command, uint8_t result) {
         case MAV_CMD_COMPONENT_ARM_DISARM:
             if (result == MAV_RESULT_ACCEPTED) {
                 armAckReceived = true;
-                LogProxy::log("✓ Arm command accepted by drone");
             }
             break;
             
         case MAV_CMD_DO_SET_MODE:
             if (result == MAV_RESULT_ACCEPTED) {
                 modeAckReceived = true;
-                LogProxy::log("✓ Mode change accepted by drone");
             }
             break;
             
         case MAV_CMD_NAV_TAKEOFF:
             if (result == MAV_RESULT_ACCEPTED) {
                 takeoffAckReceived = true;
-                LogProxy::log("✓ Takeoff command accepted by drone");
             }
             break;
-    }
-}
-
-void FollowMeCompleteMission::onSystemStatus(uint32_t onboard_control_sensors_present, 
-                                           uint32_t onboard_control_sensors_enabled,
-                                           uint32_t onboard_control_sensors_health) {
-    // Use validation component to check for system issues
-    FlightValidator::ValidationError error = FlightValidator::checkSystemStatus(
-        onboard_control_sensors_present, 
-        onboard_control_sensors_enabled, 
-        onboard_control_sensors_health
-    );
-    
-    if (error != FlightValidator::NO_ERROR) {
-        if (currentError != error) {
-            currentError = error;
-            errorStartTime = millis();
-            LogProxy::log("⚠ " + String(FlightValidator::getErrorDescription(error)));
-        }
-    } else if (currentError == FlightValidator::SENSOR_FAILURE || 
-               currentError == FlightValidator::BATTERY_LOW || 
-               currentError == FlightValidator::RC_SIGNAL_LOST) {
-        // Clear system-related errors if they're resolved
-        LogProxy::log("✓ System error resolved: " + String(FlightValidator::getErrorDescription(currentError)));
-        currentError = FlightValidator::NO_ERROR;
-        errorStartTime = 0;
     }
 }
 
@@ -287,12 +242,20 @@ const char* FollowMeCompleteMission::getCurrentStateName() const {
         case ARM_DRONE: baseState = "ARM_DRONE"; break;
         case TAKEOFF: baseState = "TAKEOFF"; break;
         case WAIT_TAKEOFF_COMPLETE: baseState = "WAIT_TAKEOFF_COMPLETE"; break;
-        case FOLLOW_MODE: baseState = "FOLLOW_MODE"; break;
+        case IN_FOLLOW_MODE: baseState = "FOLLOW_ME"; break;
         case COMPLETE: baseState = "COMPLETE"; break;
         default: baseState = "UNKNOWN"; break;
     }
     
-    // If there's an error, append it to the state name
+    // Check radio connectivity first (highest priority)
+    FlightValidator::ValidationError radioError = FlightValidator::checkRadioConnectivity(droneStatus.last_heartbeat, DroneStatus::HEARTBEAT_TIMEOUT_MS);
+    if (radioError != FlightValidator::NO_ERROR) {
+        snprintf(stateBuffer, sizeof(stateBuffer), "%s [RADIO: %s]", 
+                baseState, FlightValidator::getErrorDescription(radioError));
+        return stateBuffer;
+    }
+    
+    // If there's another error, append it to the state name
     if (currentError != FlightValidator::NO_ERROR) {
         snprintf(stateBuffer, sizeof(stateBuffer), "%s [ERROR: %s]", 
                 baseState, FlightValidator::getErrorDescription(currentError));
@@ -304,21 +267,26 @@ const char* FollowMeCompleteMission::getCurrentStateName() const {
 
 // Menu control methods implementation
 std::vector<MenuOption> FollowMeCompleteMission::getMenuOptions() const {
-    return {START_MODE, STOP_MODE, RTL_MODE, BACK_TO_MODE};
+    std::vector<MenuOption> options;
+    options.push_back(START_MODE);
+    options.push_back(STOP_MODE);
+    options.push_back(RTL_MODE);
+    options.push_back(ALT_3M);
+    options.push_back(ALT_6M);
+    options.push_back(ALT_8M);
+    options.push_back(BACK_TO_MODE);
+    return options;
 }
 
 void FollowMeCompleteMission::handleMenuAction(MenuOption option) {
     switch (option) {
         case START_MODE:
-            if (currentState == COMPLETE) {
-                start(); // Restart the mission
-            }
+            stop(); // Stop the mission
+            start(); // Restart the mission
             break;
             
         case STOP_MODE:
-            if (currentState != COMPLETE) {
-                stop(); // Stop the mission
-            }
+            stop(); // Stop the mission
             break;
             
         case RTL_MODE:
@@ -326,6 +294,20 @@ void FollowMeCompleteMission::handleMenuAction(MenuOption option) {
             send_set_mode_command("RTL");
             LogProxy::log("FollowMeCompleteMission: Setting drone to RTL mode for return to launch");
             currentState = COMPLETE; // Complete the mission
+            break;
+            
+
+            
+        case ALT_3M:
+            setNewTargetWithAltitude(3.0f);
+            break;
+            
+        case ALT_6M:
+            setNewTargetWithAltitude(6.0f);
+            break;
+            
+        case ALT_8M:
+            setNewTargetWithAltitude(8.0f);
             break;
             
         case BACK_TO_MODE:
@@ -337,20 +319,22 @@ void FollowMeCompleteMission::handleMenuAction(MenuOption option) {
     }
 }
 
-void FollowMeCompleteMission::getMenuDisplay(std::vector<String>& lines, MenuOption selectedOption) const {
-    lines.push_back("== " + String(getName()) + " ==");
-    
+void FollowMeCompleteMission::getMenuDisplay(std::vector<String>& lines, MenuOption selectedOption) const {    
     if (currentState != COMPLETE) {
-        float distance = calculateGPSDistance(lastBeaconLat, lastBeaconLon, 
-                                            getLatitude(), getLongitude());
-        lines.push_back("Updates: " + String(getUpdateCount()) + " D: " + String(distance, 1) + "m");
-        lines.push_back("State: " + String(getCurrentStateName()));
+        lines.push_back(String(getCurrentStateName()));
     }
     
-    lines.push_back("");
     lines.push_back((selectedOption == START_MODE ? "> " : "  ") + String("Start"));
     lines.push_back((selectedOption == STOP_MODE ? "> " : "  ") + String("Stop"));
     lines.push_back((selectedOption == RTL_MODE ? "> " : "  ") + String("RTL"));
+    
+    // Altitude selection in one line
+    String altLine = "Alt: ";
+    altLine += (selectedOption == ALT_3M ? ">" : " ") + String("3m ");
+    altLine += (selectedOption == ALT_6M ? ">" : " ") + String("6m ");
+    altLine += (selectedOption == ALT_8M ? ">" : " ") + String("8m");
+    lines.push_back(altLine);
+    
     lines.push_back((selectedOption == BACK_TO_MODE ? "> " : "  ") + String("Back"));
 }
 
@@ -358,50 +342,29 @@ bool FollowMeCompleteMission::isMenuActive() const {
     return currentState != COMPLETE;
 }
 
-void FollowMeCompleteMission::updateYawWithThreshold(double beaconLat, double beaconLon) {
-    // Check if it's time to update yaw
-    if (millis() - lastYawSend < YAW_SEND_INTERVAL) {
-        return; // Not time yet
+void FollowMeCompleteMission::handleSetGuidedMode() {
+    if (!modeCommandSent) {
+        send_set_mode_command("GUIDED");
+        modeCommandSent = true;
+        stateStartTime = millis();
     }
-    
-    // Calculate bearing from drone position to beacon position
-    // For now, we'll use a simple approach: drone should point at beacon
-    // In a real implementation, you'd need the drone's current position
-    // For now, we'll assume the drone is at the offset position behind the beacon
-    double droneLat = beaconLat - (FOLLOW_OFFSET / 111320.0);
-    double droneLon = beaconLon;
-    float yaw_rad = calculateGPSBearing(droneLat, droneLon, beaconLat, beaconLon);
-    
-    // Check if yaw change is significant enough to warrant sending a command
-    bool shouldSendYaw = false;
-    if (!hasLastYaw) {
-        // First yaw command - always send
-        shouldSendYaw = true;
-        LogProxy::log("Yaw update: Initial yaw " + String(yaw_rad * 180.0 / M_PI, 1) + "° to point at beacon");
-    } else {
-        // Calculate the absolute difference in yaw
-        float yawDiff = fabs(yaw_rad - lastYawRad);
-        // Handle angle wrapping (e.g., 359° to 1° = 2° difference, not 358°)
-        if (yawDiff > M_PI) {
-            yawDiff = 2 * M_PI - yawDiff;
-        }
-        
-        if (yawDiff >= YAW_CHANGE_THRESHOLD) {
-            shouldSendYaw = true;
-            LogProxy::log("Yaw update: " + String(yaw_rad * 180.0 / M_PI, 1) + "° (change: " + String(yawDiff * 180.0 / M_PI, 1) + "° >= " + String(YAW_CHANGE_THRESHOLD * 180.0 / M_PI, 1) + "° threshold)");
-        } else {
-            static unsigned long lastYawSkipLog = 0;
-            if (millis() - lastYawSkipLog >= 10000) { // Log every 10 seconds to avoid spam
-                LogProxy::log("Yaw skip: Change " + String(yawDiff * 180.0 / M_PI, 1) + "° < " + String(YAW_CHANGE_THRESHOLD * 180.0 / M_PI, 1) + "° threshold - keeping smooth video");
-                lastYawSkipLog = millis();
-            }
-        }
+    // Wait for mode acknowledgment or timeout
+    if (modeAckReceived) {
+        LogProxy::log("GUIDED mode set successfully");
+        currentState = ARM_DRONE;
+        stateStartTime = millis();
+    } else if (millis() - stateStartTime >= RETRY_TIME) { // 5 second timeout
+        LogProxy::log("⚠ Mode command timeout, retrying...");
+        modeCommandSent = false; // Retry
     }
-    
-    if (shouldSendYaw) {
-        send_attitude_target_yaw(yaw_rad);
-        lastYawSend = millis();
-        lastYawRad = yaw_rad;
-        hasLastYaw = true;
+}
+
+void FollowMeCompleteMission::handleInFollowMode() {
+    // Check if it's time to send position target and GPS has valid fix
+    if (millis() - lastPositionSend >= getPositionSendInterval() && gpsHasFix() && targetSet) {
+        // Send the target coordinates to the drone
+        send_position_target(targetLat, targetLon, targetAlt);
+        updateCount++;  // Increment counter for successful update
+        lastPositionSend = millis();
     }
 } 

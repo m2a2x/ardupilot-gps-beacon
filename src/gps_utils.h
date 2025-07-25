@@ -27,13 +27,14 @@ float calculateGPSDistance(double lat1, double lon1, double lat2, double lon2);
 float calculateGPSBearing(double lat1, double lon1, double lat2, double lon2);
 
 /**
- * Calculate offset coordinates for following behind a target
+ * Calculate offset coordinates from a target point given distance and bearing
  * @param target_lat Target latitude in degrees
  * @param target_lon Target longitude in degrees
- * @param offset_distance Distance to offset in meters (positive = behind, negative = in front)
+ * @param distance Distance to offset in meters (positive = in bearing direction, negative = opposite)
+ * @param bearing Bearing angle in radians (0 = North, π/2 = East, π = South, 3π/2 = West)
  * @param offset_lat Output: offset latitude in degrees
  * @param offset_lon Output: offset longitude in degrees
  */
 void calculateOffsetPosition(double target_lat, double target_lon, 
-                           double offset_distance, 
+                           double distance, double bearing,
                            double &offset_lat, double &offset_lon); 

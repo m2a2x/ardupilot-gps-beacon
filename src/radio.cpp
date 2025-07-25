@@ -2,7 +2,7 @@
 #include "conf.h"
 
 // Global radio instance
-MavlinkRadio radio(mavSerial); // mavSerial
+MavlinkRadio radio(Serial); // mavSerial
 
 /**
  * Constructor

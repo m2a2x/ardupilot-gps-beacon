@@ -4,69 +4,29 @@
 #include "gps.h"
 #include "log_proxy.h"  // For logging
 
-void GoToMission::start() {
+void GoToMission::onStart() {
+    static unsigned long lastPositionSend = 0;
+    const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
     send_set_mode("GUIDED");
     
     // Wait for GPS fix before setting target
     if (gpsHasFix()) {
         // Get current position
-        target_lat = getLatitude();
-        target_lon = getLongitude();
+        double target_lat = getLatitude();
+        double target_lon = getLongitude();
         float current_alt = getAltitude();
+        float target_alt = current_alt + 2.0;  // 2 meters higher
         
-        // Calculate target position (10m north, 5m east, 5m higher)
-        // const double NORTH_OFFSET = 0.000090;  // 10 meters north
-        // const double EAST_OFFSET = 0.000045;   // 5 meters east
-        
-        // target_lat = current_lat + NORTH_OFFSET;  // Move north
-        // target_lon = current_lon + EAST_OFFSET;   // Move east
-        target_alt = current_alt + 2.0;  // 2 meters higher
-        
-        target_set = true;
-        update();
-        
-        LogProxy::log("Lat=" + String(target_lat, 6) + " Lon=" + String(target_lon, 6) + " Alt=" + String(target_alt));
-    } else {
-        LogProxy::log("No GPS fix available, cannot set target");
-        target_set = false;
+        // Send the fixed target coordinates (set once in start())
+        send_position_target(target_lat, target_lon, target_alt);
+        lastPositionSend = millis();
     }
-}
-
-void GoToMission::update() {
-    if (isRunning) {
-        static unsigned long lastPositionSend = 0;
-        const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
-        
-        // Only send position target if we have a valid target and GPS fix
-        if (target_set && gpsHasFix() && millis() - lastPositionSend >= POSITION_SEND_INTERVAL) {
-            // Send the fixed target coordinates (set once in start())
-            send_position_target(target_lat, target_lon, target_alt);
-            lastPositionSend = millis();
-        }
-    }
-}
-
-void GoToMission::stop() {
-    target_set = false;
-    
-    // Set drone to LOITER mode for safe hovering
-    send_set_mode_command("LOITER");
-    LogProxy::log("Setting drone to LOITER mode for safe hovering");
-}
-
-void GoToMission::onStart() {
-    // Mission-specific start logic
-    LogProxy::log("GoToMission: onStart - preparing go to mission");
 }
 
 void GoToMission::onStop() {
-    // Mission-specific stop logic
-    LogProxy::log("GoToMission: onStop - go to mission stopped");
+    send_set_mode_command("LOITER");
 }
 
 void GoToMission::onRTL() {
-    // Mission-specific RTL logic
-    // Set drone to RTL mode for return to launch
     send_set_mode_command("RTL");
-    LogProxy::log("GoToMission: Setting drone to RTL mode for return to launch");
-} 
+}

@@ -5,6 +5,7 @@
 #include "battery.h"  // For battery functions
 #include "udp_module.h"  // For UDPClient
 #include "mission/mission.h"  // For mission management
+#include "tasks.h"  // For drone altitude functions
 
 #include "mission/mission_guided.h"
 #include "mission/mission_followme_complete.h"
@@ -18,7 +19,6 @@
 
 // External declarations
 extern unsigned long lastGPSUpdate;     // From gps.cpp
-extern int8_t radio_rssi;               // From tasks.cpp
 extern Mission* currentMission;         // From utils.cpp
 extern UDPModule udpModule;             // From udp_module.cpp
 extern bool gps_enabled;                // From conf.cpp
@@ -37,6 +37,7 @@ const MenuOption FLIGHT_MODES_OPTIONS[] = {
   GUIDED_MODE,
   AUTO,
   GO_TO,
+  FOLLOW,
   BACK
 };
 
@@ -129,6 +130,7 @@ const MenuOption* getMenuOptions(MenuScreen screen) {
     case GUIDED_MODE_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
+    case FOLLOW_CONTROL:
       // These screens now delegate to the mission menu manager
       // The actual options will be determined by the current mission
       return nullptr;
@@ -160,6 +162,7 @@ int getMenuOptionCount(MenuScreen screen) {
     case GUIDED_MODE_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
+    case FOLLOW_CONTROL:
       // These screens now delegate to the mission menu manager
       if (currentMission) {
         auto options = MissionMenuManager::getInstance().getMissionMenuOptions(currentMission);
@@ -181,7 +184,8 @@ MenuOption getNextMenuOption(MenuScreen screen, MenuOption currentOption) {
   // Handle mission-specific screens
   if (screen == GUIDED_MODE_CONTROL ||
       screen == AUTO_CONTROL ||
-      screen == GO_TO_CONTROL) {
+      screen == GO_TO_CONTROL ||
+      screen == FOLLOW_CONTROL) {
     if (currentMission) {
       return MissionMenuManager::getInstance().getNextMenuOption(currentMission, currentOption);
     }
@@ -218,7 +222,8 @@ MenuOption getPreviousMenuOption(MenuScreen screen, MenuOption currentOption) {
   // Handle mission-specific screens
   if (screen == GUIDED_MODE_CONTROL ||
       screen == AUTO_CONTROL ||
-      screen == GO_TO_CONTROL) {
+      screen == GO_TO_CONTROL ||
+      screen == FOLLOW_CONTROL) {
     if (currentMission) {
       return MissionMenuManager::getInstance().getPreviousMenuOption(currentMission, currentOption);
     }
@@ -285,7 +290,8 @@ void navigateToScreen(MenuScreen screen) {
   // Set appropriate initial option based on screen
   if (screen == GUIDED_MODE_CONTROL ||
       screen == AUTO_CONTROL ||
-      screen == GO_TO_CONTROL) {
+      screen == GO_TO_CONTROL ||
+      screen == FOLLOW_CONTROL) {
     // Mission-specific screens - always create the appropriate mission for the screen
     // Stop any existing mission first
     if (currentMission) {
@@ -402,7 +408,6 @@ void selectMenuOption() {
 
         case RESTART:
           // Restart the ESP32
-          LogProxy::log("Restarting...");
           delay(1000);  // Give time for serial message to be sent
           ESP.restart();
           break;
@@ -410,7 +415,6 @@ void selectMenuOption() {
         case EXIT_MENU:
           // Deactivate menu system
           menuState.menuActive = false;
-          LogProxy::log("Exited menu");
           break;
       }
       break;
@@ -435,7 +439,7 @@ void selectMenuOption() {
             udpModule.disable();
           } else {
             if (udpModule.enable()) {
-              LogProxy::log("UDP enabled (from settings)");
+              // UDP enabled successfully
             } else {
               LogProxy::log("Failed to enable UDP (from settings)");
             }
@@ -456,7 +460,7 @@ void selectMenuOption() {
             // Reset GPS update time when GPS is disabled
             lastGPSUpdate = 0;
           }
-          LogProxy::log(gps_enabled ? "GPS enabled (from GPS menu)" : "GPS disabled (from GPS menu)");
+
           break;
         case BACK:
           goBack();
@@ -467,6 +471,7 @@ void selectMenuOption() {
     case GUIDED_MODE_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
+    case FOLLOW_CONTROL:
       // Mission-specific screens now delegate to the mission menu manager
       if (currentMission) {
         MissionMenuManager::getInstance().handleMissionMenuAction(currentMission, menuState.currentOption);
@@ -478,10 +483,7 @@ void selectMenuOption() {
       }
       break;
 
-    case MISSION_STATUS: {
-      // This case is handled in getMenuDisplay function
-      break;
-    }
+
   }
 }
 
@@ -535,6 +537,7 @@ void getMenuDisplay(std::vector<String> &lines) {
           }
         }
       }
+      
       lines.push_back("");
       lines.push_back("Press to go back");
       break;
@@ -581,6 +584,7 @@ void getMenuDisplay(std::vector<String> &lines) {
     case GUIDED_MODE_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
+    case FOLLOW_CONTROL:
       // Mission-specific screens now delegate to the mission menu manager
       if (currentMission) {
         MissionMenuManager::getInstance().getMissionMenuDisplay(currentMission, lines, menuState.currentOption);
@@ -589,10 +593,7 @@ void getMenuDisplay(std::vector<String> &lines) {
       }
       break;
 
-    case MISSION_STATUS: {
-      getMissionStatusDisplay(lines);
-      break;
-    }
+
   }
 }
 
@@ -613,18 +614,4 @@ void getMenuDisplayWithHighlight(std::vector<String> &lines, std::vector<int> &h
     lines.clear();
     getFlightModesDisplayWithHighlight(lines, highlightLines, getMenuOptionIndex(FLIGHT_MODES, menuState.currentOption));
   }
-  
-  // Add highlight information for flight mode control screens
-  if (menuState.currentScreen == GUIDED_MODE_CONTROL ||
-      menuState.currentScreen == AUTO_CONTROL ||
-      menuState.currentScreen == GO_TO_CONTROL) {
-    // Highlight the status line if the mode is active
-    const FlightModeConfig* config = getFlightModeConfigByScreen(menuState.currentScreen);
-    if (config && isFlightModeActive(config->mode)) {
-      highlightLines.push_back(1); // Status line
-    }
-  }
-  
-  // Flight mode status screen doesn't need special highlighting
-  // The display is already handled in getMenuDisplay
 } 

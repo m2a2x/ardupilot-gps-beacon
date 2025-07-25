@@ -78,16 +78,16 @@ void send_position_target(float lat, float lon, float alt);
 void send_attitude_target_yaw(float yaw_rad);
 
 /**
- * Send a FOLLOW_TARGET message to the drone (Lat/Lon only)
- * Simplified version for when only 2D position data is available
+ * Send a FOLLOW_TARGET message to the drone with custom capabilities
  * This function sends a MAVLink FOLLOW_TARGET message to the autopilot
  * 
  * @param timestamp Timestamp in milliseconds
  * @param lat Latitude of target in degrees
  * @param lon Longitude of target in degrees
  * @param alt Altitude of target in meters
+ * @param capabilities Estimated capabilities bitmask
  */
-void sendFollowTargetLatLon(uint64_t timestamp, double lat, double lon, float alt);
+void sendFollowTargetLatLonWithCapabilities(uint64_t timestamp, double lat, double lon, float alt, uint8_t capabilities);
 
 /**
  * Send mission item to the autopilot
@@ -174,4 +174,33 @@ void request_radio_status(int32_t interval_ms = 1000);
  * 
  * @param interval_ms Interval between messages in milliseconds (0 = default rate, -1 = disable)
  */
-void request_status_text(int32_t interval_ms = 1000); 
+void request_status_text(int32_t interval_ms = 1000);
+
+/**
+ * Request data stream from the autopilot
+ * This function sends a MAVLink REQUEST_DATA_STREAM message to request
+ * periodic data stream updates
+ * 
+ * @param stream_id The data stream ID (e.g., MAV_DATA_STREAM_POSITION)
+ * @param message_rate The message rate in Hz (0 = default rate, -1 = disable)
+ */
+void request_data_stream(uint8_t stream_id, uint16_t message_rate);
+
+/**
+ * Send home position to the autopilot
+ * This function sends a MAVLink SET_HOME_POSITION message to set the home position
+ * 
+ * @param lat Latitude in degrees
+ * @param lon Longitude in degrees
+ * @param alt Altitude in meters
+ */
+void send_home_position(double lat, double lon, float alt);
+
+/**
+ * Send status text message to ground station console
+ * This function sends a MAVLink STATUSTEXT message that will appear in the ground station console
+ * 
+ * @param text The text message to send (max 50 characters)
+ * @param severity Severity level (MAV_SEVERITY_EMERGENCY, MAV_SEVERITY_ALERT, etc.)
+ */
+void send_status_text(const char* text, uint8_t severity = MAV_SEVERITY_INFO); 

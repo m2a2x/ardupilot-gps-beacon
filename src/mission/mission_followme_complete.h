@@ -4,26 +4,23 @@
 #include "../gps_utils.h"  // For GPS calculation functions
 
 class FollowMeCompleteMission : public Mission {
-private:
+protected:
     enum MissionState {
         SET_GUIDED_MODE,
         ARM_DRONE,
         TAKEOFF,
         WAIT_TAKEOFF_COMPLETE,
-        FOLLOW_MODE,
+        IN_FOLLOW_MODE,
         COMPLETE
     };
     
     MissionState currentState;
     unsigned long stateStartTime;
     unsigned long lastPositionSend;
-    const unsigned long POSITION_SEND_INTERVAL = 1000; // 1 second interval
-    const float TAKEOFF_ALTITUDE = 7.0f; // 7 meters
-    const double FOLLOW_OFFSET = 7.0; // 7 meters behind
-    const int LOG_TIME = 2000; // 2 seconds
+    const float TAKEOFF_ALTITUDE = 6.0f; // 6 meters
     const int RETRY_TIME = 5000; // 5 seconds
     const int MAX_TAKEOFF_TIME = 60000; // 60 seconds
-    const int DELAY_BEFORE_FOLLOW_MODE = 20000; // 20 seconds
+    const int DELAY_BEFORE_GOTO_MODE = 5000; // 5 seconds
 
     // Verification flags
     bool armCommandSent;
@@ -43,18 +40,13 @@ private:
     // Beacon GPS status tracking (mission critical)
     bool beaconGpsValid;
     
-    // Position tracking for improved follow logic
-    double lastBeaconLat;
-    double lastBeaconLon;
-    bool hasLastBeaconPosition;
-    const float POSITION_CHANGE_THRESHOLD = 2.0f; // 2 meters threshold
-    unsigned long lastYawSend;
-    const unsigned long YAW_SEND_INTERVAL = 500; // 500ms interval for yaw updates
+    // Target position for goto mode
+    double targetLat;
+    double targetLon;
+    float targetAlt;
+    bool targetSet;
     
-    // Yaw control for smooth video recording
-    float lastYawRad;
-    bool hasLastYaw;
-    const float YAW_CHANGE_THRESHOLD = 0.174533f; // 10 degrees in radians (10 * PI / 180)
+
     
 public:
     FollowMeCompleteMission() : 
@@ -71,12 +63,10 @@ public:
         errorStartTime(0),
         droneGpsFixType(GPS_FIX_TYPE_NO_GPS),
         beaconGpsValid(false),
-        lastBeaconLat(0.0),
-        lastBeaconLon(0.0),
-        hasLastBeaconPosition(false),
-        lastYawSend(0),
-        lastYawRad(0.0f),
-        hasLastYaw(false) {}
+        targetLat(0.0),
+        targetLon(0.0),
+        targetAlt(0.0f),
+        targetSet(false) {}
     
     void start() override;
     void update() override;
@@ -85,18 +75,13 @@ public:
     const char* getType() const override { return "FollowMeComplete"; }
     
     // Callback for command acknowledgments
-    void onCommandAck(uint16_t command, uint8_t result);
-    
-    // Callback for system status messages
-    void onSystemStatus(uint32_t onboard_control_sensors_present, 
-                       uint32_t onboard_control_sensors_enabled,
-                       uint32_t onboard_control_sensors_health);
-    
+    void onCommandAck(uint16_t command, uint8_t result) override;
+
     // Callback for GPS status from drone
     void onGPSStatus(uint8_t fix_type);
     
-    // Check if mission is in follow mode
-    bool isInFollowMode() const { return currentState == FOLLOW_MODE; }
+    // Check if mission is in goto mode
+    bool isInGotoMode() const { return currentState == IN_FOLLOW_MODE; }
     
     // Override the base class method to provide current state
     const char* getCurrentStateName() const override;
@@ -107,7 +92,14 @@ public:
     void getMenuDisplay(std::vector<String>& lines, MenuOption selectedOption) const override;
     bool isMenuActive() const override;
     
-private:
-    // Helper method for smooth yaw control
-    void updateYawWithThreshold(double beaconLat, double beaconLon);
+    // Method to set new target position with specific altitude
+    void setNewTargetWithAltitude(float altitude);
+    
+protected:
+    // Virtual functions that can be overridden by derived classes
+    virtual void handleSetGuidedMode();
+    virtual void handleInFollowMode();
+    
+    // Virtual function to get position send interval (can be overridden)
+    virtual unsigned long getPositionSendInterval() const { return 1000; } // 1 second default
 }; 

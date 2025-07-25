@@ -27,7 +27,6 @@ bool UDPModule::begin() {
     WiFi.softAPConfig(UDP_LOCAL_IP, UDP_LOCAL_IP, UDP_SUBNET_MASK);
     
     initialized = true;
-    LogProxy::log("UDP module initialized");
     return true;
 }
 
@@ -39,21 +38,16 @@ bool UDPModule::enable() {
     }
     
     if (enabled) {
-        LogProxy::log("UDP module already enabled");
         return true; // Already enabled
     }
     
-    LogProxy::log("Starting WiFi Access Point...");
     // Start WiFi Access Point
     if (!WiFi.softAP(UDP_AP_SSID, UDP_AP_PASS)) {
         LogProxy::log("Error: Failed to start Access Point!");
         return false;
     }
     
-    LogProxy::log("WiFi AP started successfully");
     delay(1000); // Give WiFi time to start
-    
-    LogProxy::log("Starting UDP server on port " + String(UDP_PORT));
     
     // Stop any existing UDP connection first
     udp.stop();
@@ -66,7 +60,6 @@ bool UDPModule::enable() {
     while (retryCount < 3 && !udpStarted) {
         udpStarted = udp.begin(UDP_PORT);
         if (!udpStarted) {
-            LogProxy::log("UDP start attempt " + String(retryCount + 1) + " failed, retrying...");
             delay(500);
             retryCount++;
         }
@@ -79,10 +72,6 @@ bool UDPModule::enable() {
     }
     
     enabled = true;
-    LogProxy::log("UDP module enabled - AP: " + String(UDP_AP_SSID) + ", Port: " + String(UDP_PORT));
-    LogProxy::log("ESP32 IP: " + WiFi.softAPIP().toString());
-    LogProxy::log("UDP server is ready to receive connections");
-    
     return true;
 }
 
@@ -101,7 +90,7 @@ void UDPModule::disable() {
     clients.clear();
     
     enabled = false;
-    LogProxy::log("UDP module disabled");
+
 }
 
 bool UDPModule::isEnabled() const {
@@ -161,11 +150,10 @@ int UDPModule::broadcastPacket(const uint8_t* data, size_t len) {
         
         // Only reset once every 10 seconds to avoid constant resets
         if (currentTime - lastResetTime > 10000) {
-            LogProxy::log("Multiple send failures detected, resetting UDP connection...");
             udp.stop();
             delay(100);
             if (udp.begin(UDP_PORT)) {
-                LogProxy::log("UDP connection reset successfully");
+                // Connection reset successfully
             } else {
                 LogProxy::log("Failed to reset UDP connection");
             }
@@ -212,7 +200,6 @@ void UDPModule::addOrUpdateClient(IPAddress ip) {
     }
     
     clients.push_back({ip, millis()});
-    LogProxy::log("New GCS client connected: " + ip.toString() + " (Total: " + String(clients.size()) + ")");
 }
 
 void UDPModule::pruneClients() {

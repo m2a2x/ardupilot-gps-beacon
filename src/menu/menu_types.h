@@ -11,10 +11,10 @@ enum MenuScreen {
   FLIGHT_MODE_STATUS, ///< Individual flight mode status screen
   SETTINGS,       ///< Settings sub-menu
   GPS_MENU,       ///< GPS control sub-menu
-  MISSION_STATUS, ///< Mission status screen
   GUIDED_MODE_CONTROL, ///< Guided mode control screen (start/stop/back)
   AUTO_CONTROL, ///< Auto mode control screen (start/stop/back)
   GO_TO_CONTROL,       ///< Go to mode control screen (start/stop/back)
+  FOLLOW_CONTROL,      ///< Follow mode control screen (start/stop/back)
 
 };
 
@@ -34,6 +34,7 @@ enum MenuOption {
   GUIDED_MODE,    ///< Enter guided mode control
   AUTO, ///< Enter auto mode control
   GO_TO,          ///< Enter go to mode control
+  FOLLOW,         ///< Enter follow mode control
   BACK,           ///< Go back to previous menu
   
   // Flight mode status screen options
@@ -43,5 +44,8 @@ enum MenuOption {
   START_MODE,     ///< Start the current flight mode
   STOP_MODE,      ///< Stop the current flight mode
   RTL_MODE,       ///< Set drone to RTL mode and complete mission
+  ALT_3M,         ///< Set altitude to 3 meters
+  ALT_6M,         ///< Set altitude to 6 meters
+  ALT_8M,         ///< Set altitude to 8 meters
   BACK_TO_MODE    ///< Go back to flight modes menu
 }; 

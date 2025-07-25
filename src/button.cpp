@@ -24,19 +24,14 @@ void setupButton() {
   
   // Test the button state on startup
   bool initialState = digitalRead(BUTTON_PIN);
-  LogProxy::log("Button initialized on pin " + String(BUTTON_PIN));
-  LogProxy::log("Initial button state: " + String(initialState ? "HIGH" : "LOW"));
-  
-  // Wait a moment and test again
-  delay(100);
+  // Small delay to let button settle, then test again
+  delay(10);
   bool testState = digitalRead(BUTTON_PIN);
-  LogProxy::log("Button test state: " + String(testState ? "HIGH" : "LOW"));
   
-  if (initialState != testState) {
-    LogProxy::log("WARNING: Button state is unstable!");
-  } else {
-    LogProxy::log("Button state is stable");
-  }
+  // Initialize static variables to match current state
+  buttonState = testState;
+  lastStableState = testState;
+  lastButtonState = testState;
 }
 
 void handleButton() {

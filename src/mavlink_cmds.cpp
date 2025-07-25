@@ -76,30 +76,25 @@ void send_set_mode_command(const char *mode_name) {
 
   // Send message through radio
   sendMavlinkMessage(&msg);
-  
-  LogProxy::log("Sent mode change command: " + String(mode_name));
 }
 
-
 /**
- * Send a FOLLOW_TARGET message to the drone (Lat/Lon only)
- * Simplified version for when only 2D position data is available
+ * Send a FOLLOW_TARGET message to the drone with custom capabilities
+ * This function sends a MAVLink FOLLOW_TARGET message to the autopilot
  *
  * @param timestamp Timestamp in milliseconds
  * @param lat Latitude of target in degrees
  * @param lon Longitude of target in degrees
  * @param alt Altitude in meters
+ * @param capabilities Estimated capabilities bitmask
  */
-void sendFollowTargetLatLon(uint64_t timestamp, double lat, double lon, float alt)
+void sendFollowTargetLatLonWithCapabilities(uint64_t timestamp, double lat, double lon, float alt, uint8_t capabilities)
 {
   mavlink_message_t msg;
 
   // Convert degrees to microdegrees (multiply by 1e7)
   int32_t lat_int = static_cast<int32_t>(lat * 1e7);
   int32_t lon_int = static_cast<int32_t>(lon * 1e7);
-  
-  // Only position data is available
-  uint8_t est_capabilities = 1;
 
   // Initialize unused arrays with zeros
   float vel[3] = {0, 0, 0};
@@ -115,10 +110,10 @@ void sendFollowTargetLatLon(uint64_t timestamp, double lat, double lon, float al
       MAVLINK_COMPONENT_ID, // component_id
       &msg,
       timestamp,        // timestamp
-      est_capabilities, // estimated capabilities (position only)
+      capabilities,     // estimated capabilities (custom)
       lat_int,          // latitude in microdegrees
       lon_int,          // longitude in microdegrees
-      alt,        // altitude in meters (default 0)
+      alt,        // altitude in meters
       vel,              // velocity (unused)
       acc,              // acceleration (unused)
       attitude_q,       // attitude quaternion (unused)
@@ -445,8 +440,6 @@ void request_radio_status(int32_t interval_ms) {
 
   // Send message through radio
   sendMavlinkMessage(&msg);
-  
-  LogProxy::log("Requested radio status messages with interval: " + String(interval_ms) + "ms");
 }
 
 /**
@@ -479,6 +472,64 @@ void request_status_text(int32_t interval_ms) {
 
   // Send message through radio
   sendMavlinkMessage(&msg);
+}
+
+/**
+ * Request data stream from the autopilot
+ * This function sends a MAVLink REQUEST_DATA_STREAM message to request
+ * periodic data stream updates
+ * 
+ * @param stream_id The data stream ID (e.g., MAV_DATA_STREAM_POSITION)
+ * @param message_rate The message rate in Hz (0 = default rate, -1 = disable)
+ */
+void request_data_stream(uint8_t stream_id, uint16_t message_rate) {
+  mavlink_message_t msg;
   
-  LogProxy::log("Requested status text messages with interval: " + String(interval_ms) + "ms");
+  // Pack the REQUEST_DATA_STREAM message
+  mavlink_msg_request_data_stream_pack(
+    MAVLINK_SYSTEM_ID,    // system_id
+    MAVLINK_COMPONENT_ID,  // component_id
+    &msg,
+    MAVLINK_TARGET_SYSTEM_ID,    // target_system
+    MAVLINK_TARGET_COMPONENT_ID,    // target_component
+    stream_id,                    // req_stream_id
+    message_rate,                 // req_message_rate
+    1                            // start_stop (1 = start, 0 = stop)
+  );
+
+  // Send message through radio
+  sendMavlinkMessage(&msg);
+}
+
+
+/**
+ * Send status text message to ground station console
+ * This function sends a MAVLink STATUSTEXT message that will appear in the ground station console
+ * 
+ * @param text The text message to send (max 50 characters)
+ * @param severity Severity level (MAV_SEVERITY_EMERGENCY, MAV_SEVERITY_ALERT, etc.)
+ */
+void send_status_text(const char* text, uint8_t severity) {
+  mavlink_message_t msg;
+  
+  // Create a buffer for the text (STATUSTEXT can hold up to 50 characters)
+  char text_buffer[50];
+  memset(text_buffer, 0, sizeof(text_buffer));
+  
+  // Copy text to buffer, ensuring it doesn't exceed 50 characters
+  strncpy(text_buffer, text, sizeof(text_buffer) - 1);
+  
+  // Pack the STATUSTEXT message
+  mavlink_msg_statustext_pack(
+    MAVLINK_SYSTEM_ID,    // system_id
+    MAVLINK_COMPONENT_ID,  // component_id
+    &msg,
+    severity,             // severity level
+    text_buffer,          // text message
+    0,                    // id (0 for single message)
+    0                     // chunk_seq (0 for single message)
+  );
+
+  // Send message through radio
+  sendMavlinkMessage(&msg);
 }

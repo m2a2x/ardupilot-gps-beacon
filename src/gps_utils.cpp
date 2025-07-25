@@ -49,26 +49,35 @@ float calculateGPSBearing(double lat1, double lon1, double lat2, double lon2) {
 }
 
 /**
- * Calculate offset coordinates for following behind a target
+ * Calculate offset coordinates from a target point given distance and bearing
  * @param target_lat Target latitude in degrees
  * @param target_lon Target longitude in degrees
- * @param offset_distance Distance to offset in meters (positive = behind, negative = in front)
+ * @param distance Distance to offset in meters (positive = in bearing direction, negative = opposite)
+ * @param bearing Bearing angle in radians (0 = North, π/2 = East, π = South, 3π/2 = West)
  * @param offset_lat Output: offset latitude in degrees
  * @param offset_lon Output: offset longitude in degrees
  */
 void calculateOffsetPosition(double target_lat, double target_lon, 
-                           double offset_distance, 
+                           double distance, double bearing,
                            double &offset_lat, double &offset_lon) {
-    // Convert distance to degrees (approximate)
-    // 1 degree of latitude ≈ 111,320 meters
-    // 1 degree of longitude ≈ 111,320 * cos(latitude) meters
+    const double EARTH_RADIUS = 6371000.0; // Earth radius in meters
     
-    double lat_offset_deg = offset_distance / 111320.0; // Convert meters to degrees
+    // Convert target coordinates to radians
+    double lat1_rad = target_lat * M_PI / 180.0;
+    double lon1_rad = target_lon * M_PI / 180.0;
     
-    // Calculate longitude offset (depends on latitude)
-    double lon_offset_deg = offset_distance / (111320.0 * cos(target_lat * M_PI / 180.0));
+    // Calculate angular distance
+    double angular_distance = distance / EARTH_RADIUS;
     
-    // Calculate offset coordinates
-    offset_lat = target_lat - lat_offset_deg; // Behind = subtract latitude
-    offset_lon = target_lon - lon_offset_deg; // Behind = subtract longitude
+    // Calculate new latitude
+    double lat2_rad = asin(sin(lat1_rad) * cos(angular_distance) + 
+                          cos(lat1_rad) * sin(angular_distance) * cos(bearing));
+    
+    // Calculate new longitude
+    double lon2_rad = lon1_rad + atan2(sin(bearing) * sin(angular_distance) * cos(lat1_rad),
+                                      cos(angular_distance) - sin(lat1_rad) * sin(lat2_rad));
+    
+    // Convert back to degrees
+    offset_lat = lat2_rad * 180.0 / M_PI;
+    offset_lon = lon2_rad * 180.0 / M_PI;
 } 

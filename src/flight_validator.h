@@ -19,6 +19,7 @@ public:
         POSITION_ESTIMATE_POOR,
         BATTERY_LOW,
         RC_SIGNAL_LOST,
+        RADIO_SIGNAL_LOST,
         SENSOR_FAILURE,
         UNKNOWN_ERROR
     };
@@ -59,6 +60,14 @@ public:
     static ValidationError checkSystemStatus(uint32_t onboard_control_sensors_present, 
                                            uint32_t onboard_control_sensors_enabled,
                                            uint32_t onboard_control_sensors_health);
+
+    /**
+     * Check radio connectivity issues
+     * @param last_heartbeat_time Timestamp of last heartbeat received
+     * @param heartbeat_timeout_ms Timeout in milliseconds for heartbeat
+     * @return ValidationError code
+     */
+    static ValidationError checkRadioConnectivity(unsigned long last_heartbeat_time, unsigned long heartbeat_timeout_ms);
 
     /**
      * Get human-readable error description

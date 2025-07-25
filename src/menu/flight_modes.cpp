@@ -2,6 +2,7 @@
 #include "mission/mission_guided.h"
 #include "mission/mission_followme_complete.h"
 #include "mission/mission_goto.h"
+#include "mission/mission_follow.h"
 #include "mavlink_cmds.h"  // For send_set_mode
 #include "utils.h"
 #include "log_proxy.h"  // For logging
@@ -13,6 +14,7 @@ extern Mission* currentMission;  // From utils.cpp
 static Mission* createGuidedMission() { return new GuidedMission(); }
 static Mission* createFollowMeCompleteMission() { return new FollowMeCompleteMission(); }
 static Mission* createGoToMission() { return new GoToMission(); }
+static Mission* createFollowMission() { return new FollowMission(); }
 
 // Centralized flight mode configuration
 static const FlightModeConfig FLIGHT_MODE_CONFIGS[] = {
@@ -39,6 +41,14 @@ static const FlightModeConfig FLIGHT_MODE_CONFIGS[] = {
     GO_TO_CONTROL,
     GO_TO,
     createGoToMission
+  },
+  {
+    FLIGHT_MODE_FOLLOW,
+    "Follow",
+    "Follow",
+    FOLLOW_CONTROL,
+    FOLLOW,
+    createFollowMission
   }
 };
 
@@ -116,7 +126,6 @@ bool executeFlightMode(FlightMode mode) {
   
   const FlightModeConfig* config = getFlightModeConfig(mode);
   if (!config) {
-    LogProxy::log("Unknown flight mode");
     return false;
   }
   
@@ -124,11 +133,9 @@ bool executeFlightMode(FlightMode mode) {
   
   if (config->createMission) {
     currentMission = config->createMission();
-    LogProxy::log(String(config->displayName) + " created - press Start to begin");
     return true;
   }
   
-  LogProxy::log("Flight mode has no mission factory");
   return false;
 }
 
@@ -152,10 +159,8 @@ bool stopFlightMode() {
     currentMission = nullptr;
     // Send LOITER command to stop the vehicle
     send_set_mode("LOITER");
-    LogProxy::log("Flight mode stopped, vehicle in LOITER");
     return true;
   }
-  LogProxy::log("No active flight mode to stop");
   return false;
 }
 
@@ -226,10 +231,7 @@ void getFlightModesDisplayWithHighlight(std::vector<String> &lines, std::vector<
   for (int i = 0; i < FLIGHT_MODE_COUNT; i++) {
     const FlightModeConfig& config = FLIGHT_MODE_CONFIGS[i];
     String line = (selectedOption == i ? "> " : "  ") + String(config.displayName);
-    if (activeMode == config.missionName) {
-      line += " *";
-      highlightLines.push_back(i + 1); // +1 because line 0 is the header
-    }
+    // Removed highlighting for active flight modes
     lines.push_back(line);
   }
   

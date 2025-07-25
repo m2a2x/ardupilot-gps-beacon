@@ -3,6 +3,7 @@
 #include "gps.h"
 #include "utils.h"
 #include "log_proxy.h"
+#include "gps_utils.h"  // For GPS calculation functions
 
 void GuidedMission::start() {
     // This is now handled by BaseMission::handleMenuAction
@@ -23,6 +24,44 @@ void GuidedMission::update() {
         }
     }
 }
+
+/**
+ * Execute follow-me logic: send position target with offset behind beacon
+ * @param offset_meters Distance behind beacon in meters (positive = behind)
+ * @param gps_valid Whether GPS has valid fix
+ * @param log_prefix Optional prefix for logging messages
+ * @return true if position was sent successfully, false otherwise
+ */
+bool GuidedMission::executeFollowMeLogic(float offset_meters, float altitude_offset_meters, bool gps_valid, const String& log_prefix) {
+    if (!gps_valid) {
+        return false;
+    }
+    
+    double target_lat = getLatitude();
+    double target_lon = getLongitude();
+    float target_alt = getAltitude();
+    
+    // Calculate offset position using GPS utility function
+    // Note: For stationary targets, "behind" is ambiguous. Using North (0 radians) as default.
+    // For moving targets, this should be updated to use the target's heading/bearing.
+    double offset_lat, offset_lon;
+    calculateOffsetPosition(target_lat, target_lon, offset_meters, 0.0, offset_lat, offset_lon);
+    
+    // Apply altitude offset
+    float final_alt = target_alt + altitude_offset_meters;
+    
+    // Send position target with offset coordinates and altitude
+    send_position_target(offset_lat, offset_lon, final_alt);
+    
+    // Log the action if prefix is provided
+    if (log_prefix.length() > 0) {
+        String logMsg = log_prefix + " Following... Target: " + String(offset_lat, 6) + "," + String(offset_lon, 6) + 
+                       " (" + String(offset_meters, 1) + "m behind, " + String(altitude_offset_meters, 1) + "m alt offset)";
+        LogProxy::log(logMsg);
+    }
+    
+    return true;
+} 
 
 void GuidedMission::stop() {
     // This is now handled by BaseMission::handleMenuAction
