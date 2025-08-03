@@ -16,34 +16,6 @@ static void sendMavlinkMessage(const mavlink_message_t* msg) {
 
 
 /**
- * Send a SET_MODE command to the autopilot
- * This function creates and sends a MAVLink SET_MODE message
- * to change the flight mode of the drone
- * 
- * @param base_mode Base mode flags (e.g., MAV_MODE_FLAG_CUSTOM_MODE_ENABLED)
- * @param custom_mode Custom mode number (specific to ArduPilot)
- */
-void send_set_mode(const char *mode_name) {
-  mavlink_message_t msg;
-  
-  uint8_t base_mode = MAV_MODE_FLAG_CUSTOM_MODE_ENABLED;
-  uint32_t custom_mode = get_custom_mode_for(mode_name);
-
-  // Pack the SET_MODE message
-  mavlink_msg_set_mode_pack(
-    MAVLINK_SYSTEM_ID,    // system_id
-    MAVLINK_COMPONENT_ID,  // component_id
-    &msg,
-    MAVLINK_TARGET_SYSTEM_ID,    // target_system
-    base_mode,  // base mode flags
-    custom_mode // custom mode number
-  );
-
-  // Send message through radio
-  sendMavlinkMessage(&msg);
-}
-
-/**
  * Send a command to set the flight mode using COMMAND_LONG
  * This function sends a MAVLink COMMAND_LONG message with MAV_CMD_DO_SET_MODE
  * which will generate a command acknowledgment
@@ -357,11 +329,11 @@ void send_position_target(float lat, float lon, float alt)
       0,                                 // time_boot_ms (not used)
       MAVLINK_TARGET_SYSTEM_ID,                                 // target_system
       MAVLINK_TARGET_COMPONENT_ID,                                 // target_component
-      MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, // frame - terrain relative altitude
+      MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, // frame - relative to home altitude (FIXED)
       0b0000111111111000,                // type_mask (only positions)
       (int32_t)(lat * 1e7),              // lat_int
       (int32_t)(lon * 1e7),              // lon_int
-      alt,                               // altitude above ground level (AGL)
+      alt,                               // altitude relative to home position
       0, 0, 0,                           // vx, vy, vz (not used)
       0, 0, 0,                           // afx, afy, afz (not used)
       0, 0                               // yaw, yaw_rate (not used)
@@ -369,46 +341,6 @@ void send_position_target(float lat, float lon, float alt)
 
   sendMavlinkMessage(&msg);
 }
-
-/**
- * Send attitude target to the drone (yaw control only)
- * This function sends a MAVLink SET_ATTITUDE_TARGET message
- * containing only yaw control (no position or other attitude)
- * 
- * @param yaw_rad Yaw angle in radians
- */
-void send_attitude_target_yaw(float yaw_rad)
-{
-  // For now, we'll use a simpler approach - send a position target with yaw
-  // This is a workaround until we can fix the attitude target function
-  double current_lat = getLatitude();
-  double current_lon = getLongitude();
-  float current_alt = getAltitude();
-  
-  // Send position target with yaw control
-  mavlink_message_t msg;
-  
-  mavlink_msg_set_position_target_global_int_pack(
-      MAVLINK_SYSTEM_ID,   // system_id
-      MAVLINK_COMPONENT_ID, // component_id
-      &msg,
-      0,                                 // time_boot_ms (not used)
-      MAVLINK_TARGET_SYSTEM_ID,          // target_system
-      MAVLINK_TARGET_COMPONENT_ID,       // target_component
-      MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, // frame - terrain relative altitude
-      0b0000111111110111,                // type_mask (position + yaw)
-      (int32_t)(current_lat * 1e7),      // lat_int
-      (int32_t)(current_lon * 1e7),      // lon_int
-      current_alt,                       // alt (AGL)
-      0, 0, 0,                          // vx, vy, vz (not used)
-      0, 0, 0,                          // afx, afy, afz (not used)
-      yaw_rad, 0                         // yaw, yaw_rate
-  );
-
-  sendMavlinkMessage(&msg);
-}
-
-
 
 /**
  * Request radio status messages from the autopilot
@@ -531,5 +463,51 @@ void send_status_text(const char* text, uint8_t severity) {
   );
 
   // Send message through radio
+  sendMavlinkMessage(&msg);
+}
+
+void send_roi_command(double lat, double lon, float alt) {
+  mavlink_message_t msg;
+
+  mavlink_msg_command_long_pack(
+      MAVLINK_SYSTEM_ID,   // system_id
+      MAVLINK_COMPONENT_ID, // component_id
+      &msg,
+      MAVLINK_TARGET_SYSTEM_ID,    // target_system
+      MAVLINK_TARGET_COMPONENT_ID, // target_component
+      MAV_CMD_DO_SET_ROI_LOCATION, // command
+      0,                           // confirmation
+      0,                           // param1 (unused)
+      0,                           // param2 (unused)
+      0,                           // param3 (unused)
+      0,                           // param4 (unused)
+      lat,                         // param5 (latitude)
+      lon,                         // param6 (longitude)
+      alt                          // param7 (altitude)
+  );
+
+  sendMavlinkMessage(&msg);
+}
+
+void send_roi_clear_command() {
+  mavlink_message_t msg;
+
+  mavlink_msg_command_long_pack(
+      MAVLINK_SYSTEM_ID,   // system_id
+      MAVLINK_COMPONENT_ID, // component_id
+      &msg,
+      MAVLINK_TARGET_SYSTEM_ID,    // target_system
+      MAVLINK_TARGET_COMPONENT_ID, // target_component
+      MAV_CMD_DO_SET_ROI_NONE,     // command
+      0,                           // confirmation
+      0,                           // param1 (unused)
+      0,                           // param2 (unused)
+      0,                           // param3 (unused)
+      0,                           // param4 (unused)
+      0,                           // param5 (unused)
+      0,                           // param6 (unused)
+      0                            // param7 (unused)
+  );
+
   sendMavlinkMessage(&msg);
 }

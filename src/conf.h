@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
 
+// Debug configuration
+#define DEBUG false
 // Network configuration
 #define GROUNDSTATION_IP 192,168,4,1  // IP of QGroundControl machine
 #define MAVLINK_BAUD 57600
@@ -15,13 +17,14 @@ extern const uint8_t MAVLINK_TARGET_SYSTEM_ID;
 extern const uint8_t MAVLINK_TARGET_COMPONENT_ID;
 
 // Button configuration
-const int BUTTON_PIN = 0;  // Using ESP32's built-in BOOT button (GPIO 0)
+const int BUTTON_PIN = 25;  // Using GPIO 25 for button input
+const int RTL_BUTTON_PIN = 27;  // Using GPIO 27 for RTL button input
 const int LONG_PRESS_MS = 800;
 
-// Note: BOOT button (GPIO 0) is pulled up internally and goes LOW when pressed
-// The button is also used for entering download mode when held during boot
-// For normal operation, it should work fine for menu navigation
-// If BOOT button doesn't work, try using GPIO 2, 4, or 5 instead
+// Note: GPIO 25 is used for button input
+// Note: GPIO 27 is used for RTL button input
+// The buttons should be connected with a pull-up resistor (or use INPUT_PULLUP mode)
+// Buttons go LOW when pressed
 
 // Serial configuration
 const int RXD2 = 17;

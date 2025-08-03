@@ -155,7 +155,6 @@ void displayTask(void *pvParameters) {
             lines.push_back("GPS: " + String(gpsDataValid ? "OK" : "NO") + " " + txStatus);
             
             if (gpsDataValid) {
-                lines.push_back("Alt: " + String(getAltitude(), 1) + "m");
                 lines.push_back("Sats: " + String(getSatelliteCount()));
             }
             
@@ -180,6 +179,7 @@ void buttonTask(void *pvParameters) {
     
     while (1) {
         handleButton();
+        handleRTLButton();
         vTaskDelay(xDelay);
     }
 }

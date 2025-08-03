@@ -1,8 +1,10 @@
 #include "button.h"
 #include <Arduino.h>
-#include "conf.h"  // For BUTTON_PIN and LONG_PRESS_MS
+#include "conf.h"  // For BUTTON_PIN, RTL_BUTTON_PIN and LONG_PRESS_MS
 #include "menu/menu.h"  // For menu functions
 #include "log_proxy.h"  // For logging
+#include "utils.h"  // For currentMission
+#include "mavlink_cmds.h"  // For RTL mode command
 
 // Button state variables
 static unsigned long pressStartTime = 0;
@@ -19,8 +21,11 @@ static unsigned long lastClickTime = 0;
 static bool doubleClickDetected = false;
 static const unsigned long DOUBLE_CLICK_TIMEOUT = 300; // 300ms for double-click
 
+
+
 void setupButton() {
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(RTL_BUTTON_PIN, INPUT_PULLUP);
   
   // Test the button state on startup
   bool initialState = digitalRead(BUTTON_PIN);
@@ -92,4 +97,16 @@ void handleButton() {
   }
 
   lastButtonState = reading;
+}
+
+void handleRTLButton() {
+  // Simple check - if button is pressed (LOW), send RTL command
+  if (digitalRead(RTL_BUTTON_PIN) == LOW) {
+    // Stop any active mission first
+    if (currentMission != nullptr) {
+      currentMission->stop();
+    }
+    // Send RTL command
+    send_set_mode_command("RTL");
+  }
 } 

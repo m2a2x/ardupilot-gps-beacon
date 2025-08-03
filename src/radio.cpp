@@ -2,7 +2,11 @@
 #include "conf.h"
 
 // Global radio instance
-MavlinkRadio radio(Serial); // mavSerial
+#if DEBUG
+MavlinkRadio radio(Serial); // Use Serial for debugging
+#else
+MavlinkRadio radio(mavSerial); // Use mavSerial for normal operation
+#endif
 
 /**
  * Constructor

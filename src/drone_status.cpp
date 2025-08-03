@@ -14,6 +14,13 @@ void DroneStatus::reset() {
     position_valid = false;
     last_position_update = 0;
     
+    // Home position
+    home_latitude = 0.0;
+    home_longitude = 0.0;
+    home_altitude_amsl = 0.0f;
+    home_position_valid = false;
+    last_home_position_update = 0;
+    
     // Flight state
     flight_mode = 0;
     is_armed = false;
@@ -58,6 +65,9 @@ void DroneStatus::parseMessage(const mavlink_message_t& msg) {
             break;
         case MAVLINK_MSG_ID_GLOBAL_POSITION_INT:
             parseGlobalPositionInt(msg);
+            break;
+        case MAVLINK_MSG_ID_HOME_POSITION:
+            parseHomePosition(msg);
             break;
         case MAVLINK_MSG_ID_SYS_STATUS:
             parseSysStatus(msg);
@@ -122,6 +132,18 @@ void DroneStatus::parseGlobalPositionInt(const mavlink_message_t& msg) {
     position_valid = true;
     altitude_valid = true;
     last_position_update = millis();
+}
+
+void DroneStatus::parseHomePosition(const mavlink_message_t& msg) {
+    mavlink_home_position_t home_pos;
+    mavlink_msg_home_position_decode(&msg, &home_pos);
+    
+    home_latitude = home_pos.latitude / 1e7;  // Convert from degE7 to degrees
+    home_longitude = home_pos.longitude / 1e7;  // Convert from degE7 to degrees
+    home_altitude_amsl = home_pos.altitude / 1000.0f;  // Convert from mm to meters
+    
+    home_position_valid = true;
+    last_home_position_update = millis();
 }
 
 void DroneStatus::parseSysStatus(const mavlink_message_t& msg) {
@@ -212,6 +234,14 @@ bool DroneStatus::isPositionValid() const {
 
 bool DroneStatus::isPositionStale() const {
     return (millis() - last_position_update) > DATA_TIMEOUT_MS;
+}
+
+bool DroneStatus::isHomePositionValid() const {
+    return home_position_valid && !isHomePositionStale();
+}
+
+bool DroneStatus::isHomePositionStale() const {
+    return (millis() - last_home_position_update) > DATA_TIMEOUT_MS;
 }
 
 bool DroneStatus::isRadioValid() const {

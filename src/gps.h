@@ -7,6 +7,10 @@
 // GPS timeout configuration
 const unsigned long GPS_TIMEOUT_MS = 5000;  // 5 seconds timeout
 
+// Moving average filter configuration
+const int GPS_AVERAGE_WINDOW_SIZE = 5;  // Number of samples to keep for averaging
+const float GPS_MAX_JUMP_METERS = 5.0;  // Maximum allowed jump in meters (outlier rejection)
+
 // External declarations
 extern unsigned long lastGPSUpdate;  // Last GPS update timestamp
 
@@ -23,28 +27,39 @@ bool setupGPS();
 bool updateGPS();
 
 /**
+ * Apply moving average filtering to current GPS data (called internally during updateGPS)
+ */
+void applyMovingAverageFiltering();
+
+/**
  * Check if GPS has a valid fix
  * @return true if GPS has valid location data
  */
 bool gpsHasFix();
 
 /**
- * Get current latitude
+ * Get current latitude (raw, unfiltered)
  * @return latitude in degrees, or 0.0 if invalid
  */
 double getLatitude();
 
 /**
- * Get current longitude
+ * Get current longitude (raw, unfiltered)
  * @return longitude in degrees, or 0.0 if invalid
  */
 double getLongitude();
 
 /**
- * Get current altitude
- * @return altitude in meters, or 0.0 if invalid
+ * Get filtered latitude using moving average
+ * @return filtered latitude in degrees, or 0.0 if invalid
  */
-double getAltitude();
+double getFilteredLatitude();
+
+/**
+ * Get filtered longitude using moving average
+ * @return filtered longitude in degrees, or 0.0 if invalid
+ */
+double getFilteredLongitude();
 
 /**
  * Get number of satellites in view
@@ -69,3 +84,20 @@ void setGPSSimulation(bool enable);
  * @return true if simulation mode is active
  */
 bool isGPSSimulationEnabled();
+
+/**
+ * Reset moving average filters (useful when GPS fix is lost and regained)
+ */
+void resetGPSFilters();
+
+/**
+ * Get filter status information
+ * @return true if filters are initialized and working properly
+ */
+bool getFilterStatus();
+
+/**
+ * Check if GPS is valid
+ * @return true if GPS is valid
+ */
+bool isGPSValid();

@@ -14,15 +14,6 @@ extern const uint8_t MAVLINK_TARGET_COMPONENT_ID;
 
 
 /**
- * Send a command to set the flight mode using mode name
- * This function sends a MAVLink SET_MODE message to the autopilot
- * using a human-readable mode name
- * 
- * @param mode_name Flight mode name (e.g., "GUIDED", "FOLLOW", "AUTO", "LOITER")
- */
-void send_set_mode(const char *mode_name);
-
-/**
  * Send a command to set the flight mode using COMMAND_LONG
  * This function sends a MAVLink COMMAND_LONG message with MAV_CMD_DO_SET_MODE
  * which will generate a command acknowledgment
@@ -67,15 +58,6 @@ void sendGPSCoordinates(double lat, double lon, float alt, float relative_alt);
  * @param alt Altitude in meters
  */
 void send_position_target(float lat, float lon, float alt);
-
-/**
- * Send attitude target to the drone (yaw control only)
- * This function sends a MAVLink SET_ATTITUDE_TARGET message
- * containing only yaw control (no position or other attitude)
- * 
- * @param yaw_rad Yaw angle in radians
- */
-void send_attitude_target_yaw(float yaw_rad);
 
 /**
  * Send a FOLLOW_TARGET message to the drone with custom capabilities
@@ -203,4 +185,22 @@ void send_home_position(double lat, double lon, float alt);
  * @param text The text message to send (max 50 characters)
  * @param severity Severity level (MAV_SEVERITY_EMERGENCY, MAV_SEVERITY_ALERT, etc.)
  */
-void send_status_text(const char* text, uint8_t severity = MAV_SEVERITY_INFO); 
+void send_status_text(const char* text, uint8_t severity = MAV_SEVERITY_INFO);
+
+/**
+ * Send ROI (Region of Interest) command to make drone point to a specific location
+ * This function sends a MAVLink COMMAND_LONG message with MAV_CMD_DO_SET_ROI_LOCATION
+ * to make the drone always point towards the specified coordinates
+ * 
+ * @param lat Latitude in degrees
+ * @param lon Longitude in degrees
+ * @param alt Altitude in meters
+ */
+void send_roi_command(double lat, double lon, float alt);
+
+/**
+ * Clear ROI (Region of Interest) command to stop drone from pointing to specific location
+ * This function sends a MAVLink COMMAND_LONG message with MAV_CMD_DO_SET_ROI_NONE
+ * to cancel any previous ROI command
+ */
+void send_roi_clear_command(); 

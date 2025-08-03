@@ -158,7 +158,7 @@ bool stopFlightMode() {
     delete currentMission;
     currentMission = nullptr;
     // Send LOITER command to stop the vehicle
-    send_set_mode("LOITER");
+    send_set_mode_command("LOITER");
     return true;
   }
   return false;

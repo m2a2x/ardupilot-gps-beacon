@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include "conf.h"  // For BUTTON_PIN and LONG_PRESS_MS
+#include "conf.h"  // For BUTTON_PIN, RTL_BUTTON_PIN and LONG_PRESS_MS
 #include "menu/menu.h"  // For menu functions
 
 // Forward declarations
@@ -20,4 +20,10 @@ void setupButton();
  * - Long press: Select current option
  */
 void handleButton();
+
+/**
+ * Handle RTL button input and trigger RTL mode
+ * - Any press: Send RTL mode command
+ */
+void handleRTLButton();
 

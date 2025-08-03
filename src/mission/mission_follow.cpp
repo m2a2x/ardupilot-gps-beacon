@@ -7,6 +7,13 @@
 // External declarations
 extern DroneStatus droneStatus;
 
+void FollowMission::start() {
+    // Call parent's start method
+    FollowMeCompleteMission::start();
+    
+    targetAlt = targetAlt - 3;
+}
+
 void FollowMission::handleInFollowMode() {
     // Send FOLLOW_TARGET messages at 10Hz (every 100ms) like the Lua script
     if (millis() - lastFollowTargetSend >= FOLLOW_UPDATE_INTERVAL) {
@@ -20,23 +27,26 @@ void FollowMission::handleInFollowMode() {
 void FollowMission::sendFollowTargetMessage() {
     // Check if we have GPS fix
     if (!gpsHasFix()) {
-        LogProxy::log("⚠ Follow Mission: No GPS fix, cannot send follow target");
+        LogProxy::log("No GPS fix");
         return;
     }
     
     // Get current beacon position (this vehicle's position)
-    double beaconLat = getLatitude();
-    double beaconLon = getLongitude();
-    float beaconAlt = getAltitude();
+    double beaconLat = getFilteredLatitude();
+    double beaconLon = getFilteredLongitude();
     
+    // Convert relative altitude to MSL altitude
+    // targetAlt is relative to home, but FOLLOW_TARGET needs MSL altitude
+    float followAltitude = targetAlt + 1;
+    if (droneStatus.isHomePositionValid()) {
+        // Use home altitude directly if available
+        followAltitude = droneStatus.home_altitude_amsl + followAltitude;
+    } else if (droneStatus.isAltitudeValid()) {
+        // Fallback: calculate home altitude from drone position
+        float homeAmsl = droneStatus.altitude_amsl - droneStatus.altitude_relative;
+        followAltitude = homeAmsl + followAltitude;
+    }
     // Send FOLLOW_TARGET message using the proper MAVLink function with capabilities
     // This allows other vehicles to follow this one
-    uint64_t timestamp = millis();
-    sendFollowTargetLatLonWithCapabilities(timestamp, beaconLat, beaconLon, beaconAlt, FOLLOW_TARGET_CAPABILITIES_POS);
-    
-    // Log follow target broadcast (less frequently to avoid spam)
-    static unsigned long lastLog = 0;
-    if (millis() - lastLog >= 5000) { // Log every 5 seconds
-        lastLog = millis();
-    }
+    sendFollowTargetLatLonWithCapabilities(millis(), beaconLat, beaconLon, ceil(followAltitude), CAPABILITIES_POS);
 }

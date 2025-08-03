@@ -15,7 +15,6 @@ enum MenuScreen {
   AUTO_CONTROL, ///< Auto mode control screen (start/stop/back)
   GO_TO_CONTROL,       ///< Go to mode control screen (start/stop/back)
   FOLLOW_CONTROL,      ///< Follow mode control screen (start/stop/back)
-
 };
 
 /**
@@ -46,6 +45,7 @@ enum MenuOption {
   RTL_MODE,       ///< Set drone to RTL mode and complete mission
   ALT_3M,         ///< Set altitude to 3 meters
   ALT_6M,         ///< Set altitude to 6 meters
-  ALT_8M,         ///< Set altitude to 8 meters
+  ALT_9M,         ///< Set altitude to 8 meters
+  ROI_CONTROL,    ///< Toggle ROI control (drone always points to beacon)
   BACK_TO_MODE    ///< Go back to flight modes menu
 }; 

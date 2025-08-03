@@ -18,6 +18,13 @@ public:
     bool position_valid;
     unsigned long last_position_update;
     
+    // Home position data
+    double home_latitude;
+    double home_longitude;
+    float home_altitude_amsl;   // Home altitude above mean sea level
+    bool home_position_valid;
+    unsigned long last_home_position_update;
+    
     // Flight state
     uint8_t flight_mode;        // Current flight mode
     bool is_armed;
@@ -61,6 +68,7 @@ public:
     void parseHeartbeat(const mavlink_message_t& msg);
     void parseAltitude(const mavlink_message_t& msg);
     void parseGlobalPositionInt(const mavlink_message_t& msg);
+    void parseHomePosition(const mavlink_message_t& msg);
     void parseSysStatus(const mavlink_message_t& msg);
     void parseGPSRawInt(const mavlink_message_t& msg);
     void parseRadioStatus(const mavlink_message_t& msg);
@@ -80,6 +88,8 @@ public:
     bool isGPSStale() const;
     bool isPositionValid() const;
     bool isPositionStale() const;
+    bool isHomePositionValid() const;
+    bool isHomePositionStale() const;
     bool isRadioValid() const;
     bool isRadioStale() const;
 }; 

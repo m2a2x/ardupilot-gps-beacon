@@ -524,7 +524,6 @@ void getMenuDisplay(std::vector<String> &lines) {
       if (gps_enabled) {
         if (gpsHasFix()) {
           lines.push_back("Status: FIX");
-          lines.push_back("Alt: " + String(getAltitude(), 1) + "m");
           lines.push_back("Sats: " + String(getSatelliteCount()));
           lines.push_back("Updates: " + String(followMeUpdates));
         } else {
@@ -562,7 +561,6 @@ void getMenuDisplay(std::vector<String> &lines) {
           lines.push_back("Status: FIX");
           lines.push_back("Lat: " + String(getLatitude(), 6));
           lines.push_back("Lon: " + String(getLongitude(), 6));
-          lines.push_back("Alt: " + String(getAltitude(), 1) + "m");
           lines.push_back("Sats: " + String(getSatelliteCount()));
           lines.push_back("Updates: " + String(followMeUpdates));
         } else {

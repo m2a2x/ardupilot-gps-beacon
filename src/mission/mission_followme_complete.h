@@ -20,7 +20,7 @@ protected:
     const float TAKEOFF_ALTITUDE = 6.0f; // 6 meters
     const int RETRY_TIME = 5000; // 5 seconds
     const int MAX_TAKEOFF_TIME = 60000; // 60 seconds
-    const int DELAY_BEFORE_GOTO_MODE = 5000; // 5 seconds
+    const int DELAY_BEFORE_GOTO_MODE = 10000; // 10 seconds
 
     // Verification flags
     bool armCommandSent;
@@ -46,6 +46,9 @@ protected:
     float targetAlt;
     bool targetSet;
     
+    // ROI control settings
+    bool roiControlEnabled;
+    
 
     
 public:
@@ -66,7 +69,8 @@ public:
         targetLat(0.0),
         targetLon(0.0),
         targetAlt(0.0f),
-        targetSet(false) {}
+        targetSet(false),
+        roiControlEnabled(false) {}
     
     void start() override;
     void update() override;
@@ -94,6 +98,9 @@ public:
     
     // Method to set new target position with specific altitude
     void setNewTargetWithAltitude(float altitude);
+    
+    // Helper method to check if drone is in the air using multiple indicators
+    bool isDroneInAir() const;
     
 protected:
     // Virtual functions that can be overridden by derived classes

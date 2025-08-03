@@ -39,7 +39,7 @@ bool GuidedMission::executeFollowMeLogic(float offset_meters, float altitude_off
     
     double target_lat = getLatitude();
     double target_lon = getLongitude();
-    float target_alt = getAltitude();
+    float target_alt = 5.0;
     
     // Calculate offset position using GPS utility function
     // Note: For stationary targets, "behind" is ambiguous. Using North (0 radians) as default.
@@ -70,7 +70,7 @@ void GuidedMission::stop() {
 
 void GuidedMission::onStart() {
     // Mission-specific start logic
-    send_set_mode("GUIDED");
+    send_set_mode_command("GUIDED");
     resetUpdateCount();  // Reset counter when starting
     LogProxy::log("Starting Guided Mode...");
 }
@@ -86,5 +86,4 @@ void GuidedMission::onRTL() {
     // Mission-specific RTL logic
     // Set drone to RTL mode for return to launch
     send_set_mode_command("RTL");
-    LogProxy::log("Setting drone to RTL mode for return to launch");
 } 
