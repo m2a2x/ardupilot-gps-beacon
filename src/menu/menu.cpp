@@ -46,12 +46,18 @@ const MenuOption FLIGHT_MODE_STATUS_OPTIONS[] = {
 };
 
 const MenuOption SETTINGS_OPTIONS[] = {
-  START_MODE,
+  UDP_TOGGLE,
+  GPS_TOGGLE,
+  GPS_SIMULATION,
+  MAVLINK_DETAILS_TOGGLE,
   BACK
 };
 
 const MenuOption GPS_MENU_OPTIONS[] = {
-  START_MODE,
+  BACK
+};
+
+const MenuOption MAVLINK_DETAILS_OPTIONS[] = {
   BACK
 };
 
@@ -76,6 +82,9 @@ static std::vector<MenuScreen> screenHistory;
 uint32_t followMeUpdates = 0;
 bool followMeEnabled = false;
 static bool followMeActive = false;  // Tracks if FollowMe mode is active
+
+// Settings state variables
+static bool mavlinkDetailsVisible = false;  // Controls visibility of MAVLink details in main menu
 
 // Previous GPS position for velocity calculation
 static double lastLat = 0.0;
@@ -111,6 +120,26 @@ int getMenuOptionIndex(MenuScreen screen, MenuOption option) {
 }
 
 /**
+ * Get current main menu options (including conditional MAVLink details)
+ * @param options Array to fill with main menu options
+ * @return Number of options
+ */
+static int getCurrentMainMenuOptions(MenuOption* options) {
+  int count = 0;
+  if (gps_enabled) {
+    options[count++] = FLIGHT_MODES_MENU;
+  }
+  options[count++] = GPS_INFO_SCREEN;
+  if (mavlinkDetailsVisible) {
+    options[count++] = MAVLINK_DETAILS_SCREEN;
+  }
+  options[count++] = SETTINGS_MENU;
+  options[count++] = RESTART;
+  options[count++] = EXIT_MENU;
+  return count;
+}
+
+/**
  * Get menu options for a specific screen
  * @param screen The screen to get options for
  * @return Array of menu options for the screen
@@ -118,7 +147,7 @@ int getMenuOptionIndex(MenuScreen screen, MenuOption option) {
 const MenuOption* getMenuOptions(MenuScreen screen) {
   switch (screen) {
     case MAIN_MENU:
-      return MAIN_MENU_OPTIONS;
+      return MAIN_MENU_OPTIONS; // Note: This won't be used for navigation due to dynamic nature
     case FLIGHT_MODES:
       return FLIGHT_MODES_OPTIONS;
     case FLIGHT_MODE_STATUS:
@@ -127,6 +156,8 @@ const MenuOption* getMenuOptions(MenuScreen screen) {
       return SETTINGS_OPTIONS;
     case GPS_MENU:
       return GPS_MENU_OPTIONS;
+    case MAVLINK_DETAILS:
+      return MAVLINK_DETAILS_OPTIONS;
     case GUIDED_MODE_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
@@ -149,8 +180,11 @@ const MenuOption* getMenuOptions(MenuScreen screen) {
  */
 int getMenuOptionCount(MenuScreen screen) {
   switch (screen) {
-    case MAIN_MENU:
-      return sizeof(MAIN_MENU_OPTIONS) / sizeof(MAIN_MENU_OPTIONS[0]);
+    case MAIN_MENU: {
+      // Calculate dynamic main menu count
+      MenuOption options[6];
+      return getCurrentMainMenuOptions(options);
+    }
     case FLIGHT_MODES:
       return sizeof(FLIGHT_MODES_OPTIONS) / sizeof(FLIGHT_MODES_OPTIONS[0]);
     case FLIGHT_MODE_STATUS:
@@ -159,6 +193,8 @@ int getMenuOptionCount(MenuScreen screen) {
       return sizeof(SETTINGS_OPTIONS) / sizeof(SETTINGS_OPTIONS[0]);
     case GPS_MENU:
       return sizeof(GPS_MENU_OPTIONS) / sizeof(GPS_MENU_OPTIONS[0]);
+    case MAVLINK_DETAILS:
+      return sizeof(MAVLINK_DETAILS_OPTIONS) / sizeof(MAVLINK_DETAILS_OPTIONS[0]);
     case GUIDED_MODE_CONTROL:
     case AUTO_CONTROL:
     case GO_TO_CONTROL:
@@ -181,6 +217,22 @@ int getMenuOptionCount(MenuScreen screen) {
  * @return The next option in sequence
  */
 MenuOption getNextMenuOption(MenuScreen screen, MenuOption currentOption) {
+  // Handle main menu dynamically
+  if (screen == MAIN_MENU) {
+    MenuOption mainMenuOptions[6]; // Max possible options
+    int count = getCurrentMainMenuOptions(mainMenuOptions);
+    
+    // Find current option in array
+    for (int i = 0; i < count; i++) {
+      if (mainMenuOptions[i] == currentOption) {
+        // Return next option (wrap around)
+        return mainMenuOptions[(i + 1) % count];
+      }
+    }
+    // If not found, return first option
+    return mainMenuOptions[0];
+  }
+
   // Handle mission-specific screens
   if (screen == GUIDED_MODE_CONTROL ||
       screen == AUTO_CONTROL ||
@@ -219,6 +271,22 @@ MenuOption getNextMenuOption(MenuScreen screen, MenuOption currentOption) {
  * @return The previous option in sequence
  */
 MenuOption getPreviousMenuOption(MenuScreen screen, MenuOption currentOption) {
+  // Handle main menu dynamically
+  if (screen == MAIN_MENU) {
+    MenuOption mainMenuOptions[6]; // Max possible options
+    int count = getCurrentMainMenuOptions(mainMenuOptions);
+    
+    // Find current option in array
+    for (int i = 0; i < count; i++) {
+      if (mainMenuOptions[i] == currentOption) {
+        // Return previous option (wrap around)
+        return mainMenuOptions[(i - 1 + count) % count];
+      }
+    }
+    // If not found, return first option
+    return mainMenuOptions[0];
+  }
+
   // Handle mission-specific screens
   if (screen == GUIDED_MODE_CONTROL ||
       screen == AUTO_CONTROL ||
@@ -389,7 +457,11 @@ void selectMenuOption() {
     case MAIN_MENU:
       switch (menuState.currentOption) {
         case FLIGHT_MODES_MENU:
-          navigateToScreen(FLIGHT_MODES);
+          if (gps_enabled) {
+            navigateToScreen(FLIGHT_MODES);
+          } else {
+            LogProxy::log("GPS must be enabled to access flight modes");
+          }
           break;
 
         case GPS_INFO_SCREEN:
@@ -397,9 +469,7 @@ void selectMenuOption() {
           break;
 
         case MAVLINK_DETAILS_SCREEN:
-          // This should not be reachable with the current navigation fix
-          // but handle it gracefully by going back
-          goBack();
+          navigateToScreen(MAVLINK_DETAILS);
           break;
 
         case SETTINGS_MENU:
@@ -433,17 +503,43 @@ void selectMenuOption() {
 
     case SETTINGS:
       switch (menuState.currentOption) {
-        case START_MODE:
+        case UDP_TOGGLE:
           // Toggle UDP module state from settings menu
           if (udpModule.isEnabled()) {
             udpModule.disable();
+            LogProxy::log("UDP disabled");
           } else {
             if (udpModule.enable()) {
-              // UDP enabled successfully
+              LogProxy::log("UDP enabled");
             } else {
-              LogProxy::log("Failed to enable UDP (from settings)");
+              LogProxy::log("Failed to enable UDP");
             }
           }
+          break;
+        case GPS_TOGGLE:
+          // Toggle GPS module state from settings menu
+          gps_enabled = !gps_enabled;
+          if (!gps_enabled) {
+            // Reset GPS update time when GPS is disabled
+            lastGPSUpdate = 0;
+            LogProxy::log("GPS disabled");
+            // If user is on main menu and currently has Flight Modes selected, move to next valid option
+            if (menuState.currentScreen == MAIN_MENU && menuState.currentOption == FLIGHT_MODES_MENU) {
+              menuState.currentOption = GPS_INFO_SCREEN;
+            }
+          } else {
+            LogProxy::log("GPS enabled");
+          }
+          break;
+        case GPS_SIMULATION:
+          // Toggle GPS simulation mode
+          setGPSSimulation(!isGPSSimulationEnabled());
+          LogProxy::log(String("GPS simulation ") + (isGPSSimulationEnabled() ? "enabled" : "disabled"));
+          break;
+        case MAVLINK_DETAILS_TOGGLE:
+          // Toggle MAVLink details visibility in main menu
+          mavlinkDetailsVisible = !mavlinkDetailsVisible;
+          LogProxy::log(String("MAVLink details ") + (mavlinkDetailsVisible ? "shown" : "hidden"));
           break;
         case BACK:
           goBack();
@@ -453,15 +549,14 @@ void selectMenuOption() {
 
     case GPS_MENU:
       switch (menuState.currentOption) {
-        case START_MODE:
-          // Toggle GPS module state from GPS menu
-          gps_enabled = !gps_enabled;
-          if (!gps_enabled) {
-            // Reset GPS update time when GPS is disabled
-            lastGPSUpdate = 0;
-          }
-
+        case BACK:
+          goBack();
           break;
+      }
+      break;
+
+    case MAVLINK_DETAILS:
+      switch (menuState.currentOption) {
         case BACK:
           goBack();
           break;
@@ -496,8 +591,13 @@ void getMenuDisplay(std::vector<String> &lines) {
   switch (menuState.currentScreen) {
     case MAIN_MENU: {
       lines.push_back("== MAIN MENU ==");
-      lines.push_back((menuState.currentOption == FLIGHT_MODES_MENU ? "> " : "  ") + String("Flight Modes"));
+      if (gps_enabled) {
+        lines.push_back((menuState.currentOption == FLIGHT_MODES_MENU ? "> " : "  ") + String("Flight Modes"));
+      }
       lines.push_back((menuState.currentOption == GPS_INFO_SCREEN ? "> " : "  ") + String("GPS Menu"));
+      if (mavlinkDetailsVisible) {
+        lines.push_back((menuState.currentOption == MAVLINK_DETAILS_SCREEN ? "> " : "  ") + String("MAVLink Details"));
+      }
       lines.push_back((menuState.currentOption == SETTINGS_MENU ? "> " : "  ") + String("Settings"));
       lines.push_back((menuState.currentOption == RESTART ? "> " : "  ") + String("Restart"));
       lines.push_back((menuState.currentOption == EXIT_MENU ? "> " : "  ") + String("Exit"));
@@ -546,25 +646,30 @@ void getMenuDisplay(std::vector<String> &lines) {
 
     case SETTINGS: {
       lines.push_back("== SETTINGS ==");
-      lines.push_back((menuState.currentOption == START_MODE ? "> " : "  ") + String("UDP ") + (udpModule.isEnabled() ? "OFF" : "ON"));
+      lines.push_back((menuState.currentOption == UDP_TOGGLE ? "> " : "  ") + String("UDP: ") + (udpModule.isEnabled() ? "ON" : "OFF"));
       if (udpModule.isEnabled()) {
-        lines.push_back("Clients: " + String(udpModule.getClientCount()));
+        lines.push_back("  Clients: " + String(udpModule.getClientCount()));
       }
+      lines.push_back((menuState.currentOption == GPS_TOGGLE ? "> " : "  ") + String("GPS: ") + (gps_enabled ? "ON" : "OFF"));
+      lines.push_back((menuState.currentOption == GPS_SIMULATION ? "> " : "  ") + String("GPS Sim: ") + (isGPSSimulationEnabled() ? "ON" : "OFF"));
+      lines.push_back((menuState.currentOption == MAVLINK_DETAILS_TOGGLE ? "> " : "  ") + String("MAVLink: ") + (mavlinkDetailsVisible ? "SHOW" : "HIDE"));
       lines.push_back((menuState.currentOption == BACK ? "> " : "  ") + String("Back"));
       break;
     }
 
     case GPS_MENU: {
-      lines.push_back("== GPS MENU ==");
+      lines.push_back("== GPS INFO ==");
+      lines.push_back("Status: " + String(gps_enabled ? "ENABLED" : "DISABLED"));
       if (gps_enabled) {
+        lines.push_back("Simulation: " + String(isGPSSimulationEnabled() ? "ON" : "OFF"));
         if (gpsHasFix()) {
-          lines.push_back("Status: FIX");
+          lines.push_back("Fix: YES");
           lines.push_back("Lat: " + String(getLatitude(), 6));
           lines.push_back("Lon: " + String(getLongitude(), 6));
           lines.push_back("Sats: " + String(getSatelliteCount()));
           lines.push_back("Updates: " + String(followMeUpdates));
         } else {
-          lines.push_back("Status: -");
+          lines.push_back("Fix: NO");
           lines.push_back("Sats: " + String(getSatelliteCount()));
           if (isGPSStale()) {
             lines.push_back("Signal: LOST");
@@ -574,7 +679,18 @@ void getMenuDisplay(std::vector<String> &lines) {
         }
       }
       lines.push_back("");
-      lines.push_back((menuState.currentOption == START_MODE ? "> " : "  ") + String("GPS ") + (gps_enabled ? "OFF" : "ON"));
+      lines.push_back((menuState.currentOption == BACK ? "> " : "  ") + String("Back"));
+      break;
+    }
+
+    case MAVLINK_DETAILS: {
+      lines.push_back("== MAVLINK INFO ==");
+      lines.push_back("System ID: " + String(MAVLINK_SYSTEM_ID));
+      lines.push_back("Component ID: " + String(MAVLINK_COMPONENT_ID));
+      lines.push_back("Target Sys: " + String(MAVLINK_TARGET_SYSTEM_ID));
+      lines.push_back("Target Comp: " + String(MAVLINK_TARGET_COMPONENT_ID));
+      lines.push_back("Armed: " + String(armed ? "YES" : "NO"));
+      lines.push_back("");
       lines.push_back((menuState.currentOption == BACK ? "> " : "  ") + String("Back"));
       break;
     }

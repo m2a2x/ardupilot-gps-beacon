@@ -11,7 +11,7 @@ const uint8_t MAVLINK_TARGET_COMPONENT_ID = 0;
 bool armed = false;
 
 // State tracking
-bool gps_enabled = true; 
+bool gps_enabled = false; 
 
 // Hardware Serial instance
 HardwareSerial mavSerial(1); 

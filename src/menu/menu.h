@@ -25,6 +25,7 @@ extern const MenuOption FLIGHT_MODES_OPTIONS[];
 extern const MenuOption FLIGHT_MODE_STATUS_OPTIONS[];
 extern const MenuOption SETTINGS_OPTIONS[];
 extern const MenuOption GPS_MENU_OPTIONS[];
+extern const MenuOption MAVLINK_DETAILS_OPTIONS[];
 extern const MenuOption FLIGHT_MODE_CONTROL_OPTIONS[];
 
 /**

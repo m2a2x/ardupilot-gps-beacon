@@ -47,5 +47,11 @@ enum MenuOption {
   ALT_6M,         ///< Set altitude to 6 meters
   ALT_9M,         ///< Set altitude to 8 meters
   ROI_CONTROL,    ///< Toggle ROI control (drone always points to beacon)
-  BACK_TO_MODE    ///< Go back to flight modes menu
+  BACK_TO_MODE,   ///< Go back to flight modes menu
+  
+  // Settings menu options
+  UDP_TOGGLE,     ///< Toggle UDP/WiFi on/off
+  GPS_TOGGLE,     ///< Toggle GPS on/off
+  GPS_SIMULATION, ///< Toggle GPS simulation mode
+  MAVLINK_DETAILS_TOGGLE ///< Toggle MAVLink details visibility in main menu
 }; 
